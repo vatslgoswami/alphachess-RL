@@ -12,6 +12,10 @@ dist/
 # Data, models, logs (large; share via Kaggle Datasets / Drive instead)
 data/*
 !data/.gitkeep
+!data/openings/
+data/openings/*
+!data/openings/README.md
+!data/openings/smoke.fen
 runs/*
 !runs/.gitkeep
 *.pt

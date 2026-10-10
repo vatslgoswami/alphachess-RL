@@ -29,6 +29,12 @@ All code is in one package, `alphachess/`. Each sub-package has one owner, but a
 
 The interfaces between components (encoding format, checkpoint format, replay record) are in [docs/INTERFACES.md](docs/INTERFACES.md). Code against those so all three of us can work in parallel.
 
+Agriya's Phase 1 search and evaluation implementation is documented in
+[`docs/SEARCH_EVAL.md`](docs/SEARCH_EVAL.md). It includes batched PUCT, the UCI wrapper, paired
+matches, Stockfish evaluation, Elo intervals, puzzle/position metrics, and the midsem plotting
+workflow. The original implementation plan is in
+[`docs/AGRIYA_PHASE1_PLAN.md`](docs/AGRIYA_PHASE1_PLAN.md).
+
 ## Setup
 
 ```bash

@@ -39,6 +39,8 @@ mcts:                               # owner: Agriya
   dirichlet_alpha: 0.3
   dirichlet_eps: 0.25
   batch_size: 16
+  seed: 0
+  gumbel: false
 
 selfplay:                           # owner: Vatsl (Phase 2)
   workers: 4
@@ -59,3 +61,12 @@ train:                              # owner: Samyak
 eval:                               # owner: Agriya
   games_per_point: 200
   stockfish_elos: [1350, 1500, 1700, 1900]
+  simulation_budgets: [0, 1, 16, 64, 256]
+  opening_suite: data/openings/midsem.fen
+  max_plies: 300
+  seed: 0
+  bootstrap_samples: 10000
+  stockfish_path: stockfish
+  stockfish_depth: 8
+  stockfish_threads: 1
+  stockfish_hash_mb: 64
