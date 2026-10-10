@@ -44,10 +44,10 @@ def setup(figsize=(7.0, 4.2), ncols: int = 1, nrows: int = 1, **kwargs):
     return fig, axes
 
 
-def save(fig, path: str | Path) -> Path:
+def save(fig, path: str | Path, rect=(0, 0, 1, 1)) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
+    fig.tight_layout(rect=rect)
     fig.savefig(path, dpi=130)
     plt.close(fig)
     return path
