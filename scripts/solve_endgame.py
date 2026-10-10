@@ -18,7 +18,7 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 from alphachess.endgames import plotting
-from alphachess.endgames.index import TABLES
+from alphachess.endgames.index import TABLES, decode
 from alphachess.endgames.solve import WIN
 from alphachess.endgames.tables import endgame_dir, load_table, save_table, solve_table
 
@@ -91,6 +91,71 @@ def plot_histograms(directory: Path, path: Path) -> None:
     plotting.save(fig, path)
 
 
+def kpk_by_pawn_square(directory: Path) -> tuple[np.ndarray, np.ndarray] | None:
+    """White-to-move win % per pawn square (ranks 2-7 x files a-d; e-h are mirror images), and
+    per pawn file when the black king stands on the pawn's file in front of it."""
+    try:
+        table = load_table("KPK", directory)
+    except FileNotFoundError:
+        return None
+    half = table.spec.half
+    _, _, pawn, bk = decode(table.spec, np.arange(half))
+    legal = table.legal[:half]
+    win = (table.wdl[:half] == WIN) & legal
+    by_square = 100 * win.reshape(24, 4096).sum(1) / legal.reshape(24, 4096).sum(1)
+    front = legal & (bk % 8 == pawn % 8) & (bk // 8 > pawn // 8)
+    by_file = np.array(
+        [
+            100 * win[front & (pawn % 8 == f)].sum() / (front & (pawn % 8 == f)).sum()
+            for f in range(4)
+        ]
+    )
+    return by_square.reshape(6, 4), by_file
+
+
+def plot_kpk(pct: np.ndarray, front: np.ndarray, path: Path) -> None:
+    full = np.concatenate([pct, pct[:, ::-1]], axis=1)  # mirror to files a-h
+    fig, (ax, bx) = plotting.setup(
+        figsize=(10.0, 4.2), ncols=2, gridspec_kw={"width_ratios": [1.35, 1]}
+    )
+    image = ax.imshow(full, origin="lower", cmap="Blues", vmin=0, vmax=100)
+    for r in range(6):
+        for f in range(8):
+            ax.text(
+                f,
+                r,
+                f"{full[r, f]:.0f}",
+                ha="center",
+                va="center",
+                fontsize=8,
+                color="white" if full[r, f] > 60 else plotting.TEXT,
+            )
+    ax.set_xticks(range(8), list("abcdefgh"))
+    ax.set_yticks(range(6), [str(r) for r in range(2, 8)])
+    ax.grid(False)
+    ax.set_xlabel("pawn file")
+    ax.set_ylabel("pawn rank")
+    ax.set_title("All positions: % won, by pawn square")
+    fig.colorbar(image, ax=ax, shrink=0.8, label="% won")
+
+    files = ["a / h", "b / g", "c / f", "d / e"]
+    bars = bx.bar(files, front, color=plotting.SERIES[0], width=0.6)
+    bx.bar_label(
+        bars,
+        labels=[f"{v:.1f}%" for v in front],
+        color=plotting.TEXT_SECONDARY,
+        fontsize=9,
+        padding=2,
+    )
+    bx.set_ylim(0, max(front) * 1.25)
+    bx.grid(axis="x", visible=False)
+    bx.set_xlabel("pawn file")
+    bx.set_ylabel("% won")
+    bx.set_title("Black king in front of the pawn")
+    fig.suptitle("KPK, White to move", color=plotting.TEXT)
+    plotting.save(fig, path)
+
+
 def main() -> None:
     args = parse_args()
     directory = Path(args.out_dir) if args.out_dir else endgame_dir()
@@ -116,6 +181,16 @@ def main() -> None:
             writer.writeheader()
             writer.writerows(rows)
         plot_histograms(directory, report / "figures" / "dtm_histograms.png")
+    kpk = kpk_by_pawn_square(directory)
+    if kpk is not None:
+        pct, front = kpk
+        with (report / "results" / "kpk_win_by_pawn_square.csv").open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["rank", "a", "b", "c", "d"])
+            for r in range(6):
+                writer.writerow([r + 2, *(round(float(x), 1) for x in pct[r])])
+            writer.writerow(["king_in_front", *(round(float(x), 1) for x in front)])
+        plot_kpk(pct, front, report / "figures" / "kpk_win_by_pawn_square.png")
 
 
 if __name__ == "__main__":

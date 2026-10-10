@@ -240,3 +240,65 @@ def test_graph_has_no_dangling_edges(solved):
     assert graph.succ.max() < graph.n + graph.num_leaves
     assert len(graph.pred) == graph.num_edges
     assert np.array_equal(np.bincount(graph.pred, minlength=graph.n), graph.outdegree)
+
+
+# --- T4: KPK (solving takes ~15 s, so these are slow tests) -----------------------------------
+
+
+@pytest.fixture(scope="session")
+def kpk(solved):
+    table, graph = tables.solve_table("KPK", {name: t for name, (t, _) in solved.items()})
+    tables.save_table(table, tables.endgame_dir())
+    probe.get_table.cache_clear()
+    return table, graph
+
+
+@pytest.mark.slow
+def test_kpk_longest_mate_and_draw_share(kpk):
+    table, _ = kpk
+    white = table.meta["summary"]["white_to_move"]
+    assert white["max_dtm_plies"] == 55  # mate in 28, including the KQK phase
+    assert 0 < white["draw"] < white["win"]
+    assert white["loss"] == 0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ("fen", "wdl"),
+    [
+        ("3k4/8/3K4/8/3P4/8/8/8 b - - 0 1", -1),  # king on a key square: win for White
+        ("8/8/4k3/8/4K3/4P3/8/8 w - - 0 1", 0),  # Black has the opposition: draw
+        ("8/8/4k3/8/4K3/4P3/8/8 b - - 0 1", -1),  # White has the opposition: win
+        ("7k/8/6K1/7P/8/8/8/8 w - - 0 1", 0),  # rook pawn, defender in the corner: draw
+        ("4k3/4P3/4K3/8/8/8/8/8 b - - 0 1", 0),  # stalemate
+        ("8/5P2/8/8/8/8/k7/4K3 w - - 0 1", 1),  # promotes into the KQK table
+    ],
+)
+def test_kpk_textbook_positions(kpk, fen, wdl):
+    assert probe.probe_wdl(chess.Board(fen)) == wdl
+
+
+@pytest.mark.slow
+def test_kpk_promotion_and_colour_flip(kpk):
+    board = chess.Board("8/8/8/8/8/7K/k4p2/8 b - - 0 1")  # Black pawn, Black to move
+    assert probe.probe_wdl(board) == 1
+    move = probe.best_move(board)
+    assert move == chess.Move.from_uci("f2f1q")
+    dtm = probe.probe_dtm(board)
+    board.push(move)
+    assert probe.probe_dtm(board) == -(dtm - 1)
+
+
+@pytest.mark.slow
+def test_kpk_bellman_and_value_iteration(kpk):
+    table, graph = kpk
+    assert verify.check_bellman(table, graph).ok
+    assert verify.check_value_iteration(table, graph, gamma=0.9).ok
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _has_syzygy("KPvK"), reason="Syzygy 3-piece files not present")
+def test_syzygy_agrees_on_every_kpk_position(kpk):
+    table, _ = kpk
+    result = verify.check_syzygy(table, str(SYZYGY_DIR))
+    assert result.ok, result.details
