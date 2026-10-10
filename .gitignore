@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Data, models, logs (large; share via Kaggle Datasets / Drive instead)
+data/*
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.npy
+*.rtbw
+*.rtbz
+*.pgn
+*.pgn.zst
+*.parquet
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

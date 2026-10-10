@@ -1,0 +1,61 @@
+# Shared configuration. Keep keys grouped by component; add, don't rename,
+# without telling the team. Paths are relative to the repo root.
+
+paths:
+  data_dir: data
+  runs_dir: runs
+  tablebase_dir: data/syzygy        # Syzygy .rtbw/.rtbz files (3-5 piece)
+  endgame_dir: data/endgames        # our exact DP solutions (.npz)
+  lichess_dir: data/lichess         # encoded supervised shards
+
+encoding:                           # owner: Samyak
+  history: 1                        # number of past positions stacked into planes
+  num_moves: 4672                   # 8x8x73 AlphaZero move encoding
+
+model:                              # owner: Samyak
+  blocks: 6
+  channels: 64
+  value_head: tanh                  # tanh | wdl
+
+endgames:                           # owner: Vatsl
+  tables: [KQK, KRK, KPK]
+  gamma: 1.0                        # undiscounted SSP; mate distance from DTM
+  verify_samples: 10000             # positions checked against Syzygy per table
+
+lichess:                            # owner: Vatsl
+  month: "2024-01"                  # database.lichess.org standard rated month
+  min_elo: 1800
+  min_base_time: 180                # seconds; skip bullet
+  positions_per_game: 8
+  target_positions: 2000000
+  skip_first_plies: 8
+  stockfish_depth: 12
+  value_scale: 400                  # z = tanh(cp / value_scale)
+  shard_size: 100000
+
+mcts:                               # owner: Agriya
+  simulations: 64
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_eps: 0.25
+  batch_size: 16
+
+selfplay:                           # owner: Vatsl (Phase 2)
+  workers: 4
+  resign_threshold: -0.9
+  resign_disable_frac: 0.1          # fraction of games where resignation is off (calibration)
+  temperature_moves: 30
+  adjudicate_with_tablebase: true
+
+replay:                             # owner: Vatsl (Phase 2)
+  capacity: 500000
+
+train:                              # owner: Samyak
+  batch_size: 256
+  lr: 0.001
+  weight_decay: 0.0001
+  checkpoint_minutes: 20
+
+eval:                               # owner: Agriya
+  games_per_point: 200
+  stockfish_elos: [1350, 1500, 1700, 1900]
