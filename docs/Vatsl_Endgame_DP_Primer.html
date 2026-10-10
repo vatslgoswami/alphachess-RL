@@ -1,0 +1,615 @@
+<title>Endgame DP Primer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (~44rem) with wider figure panels for the two interactive graphs. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #1b2330;
+  --muted: #5b6676;
+  --line: #d6dbe3;
+  --accent: #3a52c4;
+  --accent-soft: #e6eaff;
+  --active: #c98410;
+  --active-soft: #fff3dc;
+  --win: #1f7a4b;
+  --loss: #b83a2e;
+  --wnode-fill: #ffffff;
+  --wnode-text: #1b2330;
+  --bnode-fill: #1b2330;
+  --bnode-text: #ffffff;
+  --node-stroke: #1b2330;
+  --code-bg: #eef1f6;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-body: "Source Sans 3", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #19202a; --ink: #e5e9f0; --muted: #9aa5b4; --line: #2c3542;
+    --accent: #93a5ff; --accent-soft: #232c4d; --active: #f0b44a; --active-soft: #3a2e16;
+    --win: #55c58a; --loss: #f0796b;
+    --wnode-fill: #eef0f4; --wnode-text: #11151c; --bnode-fill: #05070a; --bnode-text: #eef0f4; --node-stroke: #aab3c0;
+    --code-bg: #212935;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #19202a; --ink: #e5e9f0; --muted: #9aa5b4; --line: #2c3542;
+  --accent: #93a5ff; --accent-soft: #232c4d; --active: #f0b44a; --active-soft: #3a2e16;
+  --win: #55c58a; --loss: #f0796b;
+  --wnode-fill: #eef0f4; --wnode-text: #11151c; --bnode-fill: #05070a; --bnode-text: #eef0f4; --node-stroke: #aab3c0;
+  --code-bg: #212935;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.6;
+  padding-inline: 16px; padding-block: 0 4rem;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.wide { max-width: 58rem; margin-inline: auto; }
+
+header { max-width: 46rem; margin: 0 auto; padding-block: 3rem 1.5rem; }
+.eyebrow { font-size: .78rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--font-display); font-weight: 650; font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.1; margin: .35rem 0 .75rem; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 650; font-size: 1.6rem; line-height: 1.2; margin: 3.25rem 0 .75rem; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.2rem; margin: 2rem 0 .5rem; }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 40rem; }
+p, li { max-width: 44rem; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+
+.toc { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin-top: 1.25rem; padding: 0; list-style: none; }
+.toc a { display: inline-block; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .75rem; font-size: .9rem; background: var(--surface); }
+.toc a:hover, .toc a:focus-visible { border-color: var(--accent); color: var(--accent); }
+
+.formula {
+  font-family: var(--font-mono); font-size: 1rem; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: .9rem 1.1rem; margin: 1rem 0;
+  overflow-x: auto; white-space: pre; line-height: 1.7;
+}
+.formula .c { color: var(--muted); }
+
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: .75rem 1rem; border-radius: 0 8px 8px 0; margin: 1.25rem 0; }
+.note p { margin: .25rem 0; }
+
+.tbl { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--code-bg); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.pos { color: var(--win); } .neg { color: var(--loss); }
+
+/* Figure panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; margin: 1.25rem auto; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .5rem; }
+.panel-title { font-weight: 600; }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+button {
+  font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 8px; padding: .4rem .85rem;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:hover { border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--active); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; }
+.svgwrap { overflow-x: auto; }
+svg.graph { display: block; width: 100%; min-width: 560px; height: auto; }
+.stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .9rem; color: var(--muted); margin-top: .5rem; }
+.stats b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
+.narration { margin-top: .75rem; padding: .75rem 1rem; background: var(--active-soft); border-radius: 8px; min-height: 3.2rem; }
+.narration .calc { font-family: var(--font-mono); font-size: .85rem; display: block; margin-top: .35rem; white-space: pre-wrap; }
+.legend { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+.legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.sw { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--node-stroke); display: inline-block; }
+.sw.w { background: var(--wnode-fill); } .sw.b { background: var(--bnode-fill); }
+.sw.t { border-radius: 3px; background: var(--code-bg); }
+.sw.cur { background: transparent; border: 3px solid var(--active); }
+
+/* SVG */
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.4; opacity: .55; }
+.edge.trail { stroke: var(--accent); opacity: .9; stroke-width: 2.2; }
+.edge.active { stroke: var(--active); opacity: 1; stroke-width: 3; }
+.node circle, .node rect { stroke: var(--node-stroke); stroke-width: 1.5; }
+.node.w circle { fill: var(--wnode-fill); }
+.node.b circle { fill: var(--bnode-fill); }
+.node.t rect { fill: var(--code-bg); }
+.node .lbl { font-family: var(--font-mono); font-size: 13px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.node.w .lbl, .node.t .lbl { fill: var(--wnode-text); }
+.node.t .lbl { fill: var(--ink); }
+.node.b .lbl { fill: var(--bnode-text); }
+.node .ring { fill: none; stroke: none; stroke-width: 3; }
+.node.changed .ring { stroke: var(--active); }
+.node.current .ring { stroke: var(--active); stroke-width: 4.5; }
+.node.unvisited circle { stroke-dasharray: 3 3; opacity: .55; }
+.val { font-family: var(--font-mono); font-size: 13px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; fill: var(--muted); }
+.val.pos { fill: var(--win); } .val.neg { fill: var(--loss); }
+.val.wrong { text-decoration: line-through; }
+.arrow { fill: var(--muted); } .arrow-trail { fill: var(--accent); } .arrow-active { fill: var(--active); }
+
+.qa { border-top: 1px solid var(--line); padding-top: .5rem; }
+.qa h3 { margin-top: 1.5rem; }
+.ripple td:first-child { white-space: nowrap; font-family: var(--font-mono); }
+footer { max-width: 46rem; margin: 4rem auto 0; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .edge, .node .ring { transition: stroke .2s, opacity .2s, stroke-width .2s; }
+}
+</style>
+
+<header>
+  <div class="eyebrow">alpha-chess-rl · Phase 1 · endgames</div>
+  <h1>Solving endgames by dynamic programming</h1>
+  <p class="lede">How the Bellman backup works, how value iteration and RTDP fill the same table in different ways, and how this turns into AlphaZero training. Everything below runs on one tiny game graph that you can step through.</p>
+  <ul class="toc">
+    <li><a href="#graph">The toy game</a></li>
+    <li><a href="#backup">Bellman backup</a></li>
+    <li><a href="#vi">Value iteration</a></li>
+    <li><a href="#rtdp">RTDP</a></li>
+    <li><a href="#questions">Your questions</a></li>
+    <li><a href="#alphazero">Towards AlphaZero</a></li>
+    <li><a href="#gradient">How the network learns</a></li>
+  </ul>
+</header>
+
+<main>
+
+<h2 id="graph">1. The toy game</h2>
+<p>Think of each node as one whole KQK position: piece squares <em>plus</em> whose turn it is, for example <code>K_W=h1 Q_W=h2 K_B=e4, Black to move</code>. An arrow is one legal move. White-to-move positions are white circles, Black-to-move positions are black circles, and moves alternate between them.</p>
+<p>Real KQK has hundreds of thousands of nodes. This one has 10 plus three end states, which is small enough to compute by hand:</p>
+<ul>
+  <li><b>mate</b>: Black to move and checkmated. Value <span class="neg mono">−1</span> for the side to move (Black).</li>
+  <li><b>draw</b>: Black captured the queen, so only kings are left. Value <span class="mono">0</span>.</li>
+</ul>
+
+<div class="panel wide">
+  <div class="svgwrap"><svg class="graph" id="g-static" viewBox="0 0 830 430" role="img" aria-label="Toy game graph with 10 positions and 3 end states"></svg></div>
+  <div class="legend">
+    <span><i class="sw w"></i>White to move</span>
+    <span><i class="sw b"></i>Black to move</span>
+    <span><i class="sw t"></i>end of game</span>
+  </div>
+</div>
+<p>Look at <b>B2</b>: Black can capture the queen there (move to <b>draw</b>). White's first move from <b>S</b> should avoid giving Black that chance. A correct solver has to discover this on its own.</p>
+
+<h2 id="backup">2. The Bellman backup</h2>
+<p>A <b>backup</b> is one small calculation at one position: <em>"if I already knew the values of the positions I can move to, what is this position worth?"</em> You look one move ahead, read the values of the next positions from the table, and write the best result into this position's entry.</p>
+
+<h3>One player first</h3>
+<p>In a maze, a square's value is the best neighbour's value minus the cost of one step. The single-agent Bellman equation says the same thing:</p>
+<div class="formula">V(s) = max over moves a of [ reward(s, a) + γ · V(next) ]</div>
+
+<h3>Two players: minimax</h3>
+<p>In chess the two sides want opposite things. Score everything from White's point of view: White picks the move with the <b>highest</b> value and Black picks the <b>lowest</b>. Take <b>B1</b> (Black to move), whose moves lead to W2 and W3. Suppose we already know W2 is worth +0.9 for White and W3 is worth +0.729:</p>
+<div class="formula"><span class="c">Black to move, so take the min (values from White's view)</span>
+V_white(B1) = min( 0.9 · V_white(W2), 0.9 · V_white(W3) )
+            = min( 0.9 · 0.9,         0.9 · 0.729 )
+            = min( 0.81, 0.656 ) = 0.656     <span class="c">Black heads for W3</span></div>
+
+<h3>Negamax: one rule for both sides</h3>
+<p>Writing max for one side and min for the other gets messy. Instead, store every value <b>from the point of view of the side to move</b>. What is good for my opponent is bad for me, so a value flips sign every time you cross an arrow:</p>
+<div class="formula">V(s) = max over moves of  − γ · V(next)</div>
+<p>Read it from White's seat:</p>
+<ol>
+  <li>Every value in the table is from the point of view of <b>the side to move</b> in that position.</li>
+  <li>After any White move it's Black's turn, so <code>V(next)</code> is how good that position is <b>for Black</b>.</li>
+  <li>Zero-sum: what's good for Black is equally bad for White, so the same position is worth <code>−V(next)</code> to White.</li>
+  <li>White picks the move with the highest <code>−V(next)</code>, which is the move that leaves Black worst off.</li>
+  <li>One move later Black uses the exact same rule from its own seat. One formula covers both sides.</li>
+</ol>
+<p>The minus sign means "switch seats". Plain minimax keeps everything from White's view, with White taking the max and Black the min. Negamax gives the same numbers, stored from the mover's side, with a single max.</p>
+<p>Same example. Now W2 and W3 are worth +0.9 and +0.729 <em>to White</em>, the side to move there:</p>
+<div class="formula">V(B1) = max( −0.9 · 0.9,  −0.9 · 0.729 )
+      = max( −0.81,      −0.656 )  = −0.656   <span class="c">bad for Black, the side to move</span></div>
+<p>It gives the same answer as minimax with the sign flipped (−0.656 for Black is +0.656 for White), and every position uses the same rule. That's why our solver uses negamax.</p>
+
+<h3>Why the 0.9 (γ)?</h3>
+<p>Without it, every win is worth +1, whether it's mate in 1 or mate in 40. The winning side then has no reason to make progress: in our graph, W4 and B4 could shuffle back and forth forever, since every position in the loop counts as "winning". With γ = 0.9, each extra move shrinks the value:</p>
+<div class="tbl"><table>
+  <tr><th>Situation</th><th class="num">Value (side to move)</th></tr>
+  <tr><td>Checkmated</td><td class="num neg">−1</td></tr>
+  <tr><td>Mate in 1 available</td><td class="num pos">+0.9</td></tr>
+  <tr><td>Every move allows mate in 1</td><td class="num neg">−0.81</td></tr>
+  <tr><td>Mate in 2</td><td class="num pos">+0.729</td></tr>
+</table></div>
+<p>So the winner prefers faster mates and the loser prefers slower losses. That's why Black at B1 goes to W3: it loses in more moves.</p>
+<p>This matches real chess. Against a perfect opponent a lost position stays lost however long you resist. Real opponents make mistakes, though, so dragging out a loss gives them more chances to go wrong, and a fast win gives them fewer. Tablebase-perfect defence works the same way: it always picks the longest resistance.</p>
+<p> Our real solver stores "win/draw/loss + plies to mate" instead of a γ-number. The two carry the same information, but γ is easier to see in a small example.</p>
+
+<div class="note"><p>A backup only <b>reads</b> the neighbours' current values. They don't have to be correct yet. If they're still guesses, the backup gives an improved guess. Value iteration and RTDP both do backups and differ only in <b>which positions get backed up, and in what order</b>.</p></div>
+
+<h2 id="vi">3. Value iteration: back up every position, every sweep</h2>
+<p>Start with every value at 0 (a guess). End states are exact from the start. One <b>sweep</b> backs up all 10 positions using the previous sweep's values. Repeat until a sweep changes nothing. Step through it:</p>
+
+<div class="panel wide" id="vi-panel">
+  <div class="panel-head">
+    <span class="panel-title" id="vi-title">Before sweep 1: all guesses are 0</span>
+    <div class="controls">
+      <button class="primary" id="vi-next">Next sweep</button>
+      <button id="vi-all">Run to end</button>
+      <button id="vi-reset">Reset</button>
+    </div>
+  </div>
+  <div class="svgwrap"><svg class="graph" id="g-vi" viewBox="0 0 830 430" role="img" aria-label="Value iteration on the toy graph"></svg></div>
+  <div class="legend"><span><i class="sw cur"></i>value changed in this sweep</span><span><span class="pos mono">+</span> good for side to move</span><span><span class="neg mono">−</span> bad for side to move</span></div>
+  <div class="stats"><span>Sweep <b id="vi-sweep">0</b></span><span>Backups so far <b id="vi-backups">0</b></span></div>
+  <div class="narration" id="vi-say">Press <b>Next sweep</b>.</div>
+  <div class="tbl" id="vi-table"></div>
+</div>
+
+<p>The values ripple outwards from the mates, one move per sweep. This is your breadth-first search from the terminal states. Note B3 in sweep 2: two of its moves lead to mate-in-1 positions, but its third move (to W5) still looks like 0. A position is only proven lost once <b>every</b> escape is closed, so B3 has to wait until sweep 4.</p>
+<p>The cost: each sweep does 10 backups, but most of them change nothing. That's 60 backups in total, and only 10 of them did anything useful. On real KQK, the <b>retrograde analysis</b> we'll implement fixes this: it walks moves backwards from the mates and backs up a position only when one of its neighbours has just been resolved. It produces the same table and the same values as value iteration, without the wasted backups.</p>
+
+<h2 id="rtdp">4. RTDP: back up only where play goes</h2>
+<p>Real-time dynamic programming uses <b>the same backup</b>, but it doesn't sweep. Instead it plays games, called <b>trials</b>:</p>
+<ol>
+  <li>Start at <b>S</b>.</li>
+  <li>Back up the current position using the table's current values.</li>
+  <li>Play the move that backup says is best. Both sides do this, so Black also plays its best move by the current table.</li>
+  <li>Repeat until the game ends, then start a new trial from S.</li>
+</ol>
+<p>When moves are tied (common at first, when everything is 0), pick the move this position has <b>tried least often</b>. That simple rule makes sure untried moves eventually get explored.</p>
+
+<div class="panel wide" id="rtdp-panel">
+  <div class="panel-head">
+    <span class="panel-title" id="rtdp-title">Before trial 1: all guesses are 0</span>
+    <div class="controls">
+      <button class="primary" id="rtdp-next">Next backup</button>
+      <button id="rtdp-trial">Finish trial</button>
+      <button id="rtdp-all">Run to end</button>
+      <button id="rtdp-reset">Reset</button>
+    </div>
+  </div>
+  <div class="svgwrap"><svg class="graph" id="g-rtdp" viewBox="0 0 830 430" role="img" aria-label="RTDP on the toy graph"></svg></div>
+  <div class="legend"><span><i class="sw cur"></i>position being backed up</span><span><svg width="28" height="10" aria-hidden="true"><line x1="0" y1="5" x2="28" y2="5" stroke="var(--active)" stroke-width="3"></line></svg>move played</span><span><svg width="28" height="10" aria-hidden="true"><line x1="0" y1="5" x2="28" y2="5" stroke="var(--accent)" stroke-width="2.2"></line></svg>this trial's path</span><span><i class="sw" style="border-style:dashed"></i>never visited</span></div>
+  <div class="stats"><span>Trial <b id="rtdp-trialn">0</b></span><span>Backups so far <b id="rtdp-backups">0</b></span><span>Positions touched <b id="rtdp-touched">0</b> of 10</span></div>
+  <div class="narration" id="rtdp-say">Press <b>Next backup</b>.</div>
+</div>
+
+<h3>What each trial learned</h3>
+<p>Exact information starts at the mates and travels <b>backwards along the paths the games actually took</b>, one step per trial. It's the same ripple as in value iteration, but driven by play instead of sweeps:</p>
+<div class="tbl"><table class="ripple">
+  <tr><th>Trial</th><th>What became correct</th></tr>
+  <tr><td>1</td><td><b>W4</b> = +0.9. It sits next to a mate, so a single backup gets it right.</td></tr>
+  <tr><td>2</td><td><b>W2</b> = +0.9, also next to a mate. B3 got backed up, but its neighbours were still guesses, so it still looks like 0.</td></tr>
+  <tr><td>3</td><td>Nothing new. Black tried capturing the queen (B2 → draw).</td></tr>
+  <tr><td>4</td><td><b>B4</b> = −0.81, because its only move goes to W4, which is now known.</td></tr>
+  <tr><td>5</td><td><b>W3</b> = +0.729, learned from B4.</td></tr>
+  <tr><td>6</td><td><b>B1</b> = −0.656, learned from W3.</td></tr>
+  <tr><td>7</td><td><b>S</b> = +0.59, learned from B1. White now plays S → B1 and wins. Done.</td></tr>
+</table></div>
+
+<h3>Result</h3>
+<div class="tbl"><table>
+  <tr><th></th><th class="num">Value iteration</th><th class="num">RTDP from S</th></tr>
+  <tr><td>Backups</td><td class="num">60</td><td class="num">32</td></tr>
+  <tr><td>Positions ever updated</td><td class="num">10 of 10</td><td class="num">8 of 10</td></tr>
+  <tr><td>Positions with the exact value</td><td class="num">10 of 10</td><td class="num">7 of 10</td></tr>
+  <tr><td>Plays perfectly from S?</td><td class="num">yes</td><td class="num">yes</td></tr>
+</table></div>
+<p>RTDP finished with <b>three wrong values</b>: W5 and B5 were never visited, and B3 was visited once while its neighbours were still unknown. None of them matter for playing from S. White's best line never goes near them, and B3's wrong value (it looks like a draw) only makes White avoid it, which is harmless because W3 has an equally good move to B4. RTDP spent no effort on them, which is the whole point.</p>
+
+<h2 id="questions">5. Your three questions</h2>
+<div class="qa">
+
+<h3>Does RTDP start from random positions, or from positions a real game would reach?</h3>
+<p>You choose. The set of start positions is an input to RTDP, and it defines what "relevant" means. RTDP's guarantee (Barto, Bradtke &amp; Singh, 1995) is that values become exact on the positions that come up when playing well <b>from those starts</b>. Positions that good play never reaches can stay wrong forever.</p>
+<ul>
+  <li>Start from <b>one position</b> (as above): only a slice of the graph matters.</li>
+  <li>Start from <b>positions that arise in real games</b>: you get correct play wherever games actually go.</li>
+  <li>Start from <b>every position</b>: everything is relevant, so RTDP has to solve the whole table, and there's no saving.</li>
+</ul>
+<p>For our experiment, we'll pick a sample of start positions (say 1,000 random legal KRK positions with White to move) and measure how many distinct positions RTDP touches before its play from those starts matches the exact table. In a 3-piece ending, almost any position can come up in a real game, so the saving may turn out modest. That's still a real, reportable measurement.</p>
+
+<h3>If the starts are random, how can it converge faster than value iteration?</h3>
+<p>It doesn't solve the <b>whole table</b> faster. It gets <b>the positions you care about</b> right faster, for two reasons:</p>
+<ol>
+  <li><b>It skips positions that don't matter.</b> W5 and B5 were never touched.</li>
+  <li><b>It skips pointless backups.</b> Sweep 1 of value iteration did 10 backups and only 2 changed anything, because the rest had no known neighbours yet. RTDP spends its backups along paths that lead to mates, where information is arriving.</li>
+</ol>
+<p>It wastes some work too. Trial 1 backed up S, B2, W3 and B4 and learned nothing from them. And it needs exploration: if ties were always broken the same way, White could keep playing S → B2, see a "draw", and never try B1. That's why the tie-break uses the least-tried move. In the single-player theory, the fix is to start with optimistic guesses. For two players, we'll rely on exploration and check the results against the exact table.</p>
+<p>For KQK and KRK, retrograde analysis is the fastest way to get the full table. RTDP is in the project because it shows the idea that scales: <b>update only where play goes</b>.</p>
+
+<h3>Aren't we still filling up the table?</h3>
+<p>Value iteration and RTDP need two different things:</p>
+<div class="tbl"><table>
+  <tr><th></th><th>Value iteration / retrograde</th><th>RTDP</th></tr>
+  <tr><td>Must list every position up front?</td><td>Yes, in order to sweep</td><td>No. It only needs the move generator, to find the next positions from wherever it is.</td></tr>
+  <tr><td>Storage</td><td>One entry for every position</td><td>A dictionary <code>position → value</code> holding only visited positions. Anything missing uses the default guess.</td></tr>
+  <tr><td>In the toy example</td><td>10 entries</td><td>8 entries; W5 and B5 never get one</td></tr>
+</table></div>
+<p>For KQK we'll probably still allocate the full array, because it's small and makes the comparison with the exact answer easy. The number we report is <b>how many entries RTDP actually writes</b>. For full chess, even the dictionary is hopeless: a single game visits ~80 positions, but there are ~10⁴⁴ possible ones, and you almost never see the same position twice outside the opening. That's where the neural network comes in.</p>
+</div>
+
+<h2 id="alphazero">6. From RTDP to AlphaZero</h2>
+<p>We don't run RTDP on full chess. AlphaZero is RTDP with every piece replaced by something that scales:</p>
+<div class="tbl"><table>
+  <tr><th>RTDP piece</th><th>Problem in full chess</th><th>AlphaZero version</th><th>Owner</th></tr>
+  <tr><td>Table <code>V[s]</code></td><td>Can't store 10⁴⁴ entries</td><td><b>Neural network</b>: position in, value and move probabilities out. Similar positions share what it learns.</td><td>Samyak</td></tr>
+  <tr><td>One-move lookahead</td><td>Too shallow, and the estimates are noisy</td><td><b>MCTS</b>: looks many moves ahead, guided by the network</td><td>Agriya</td></tr>
+  <tr><td>Trials from start positions</td><td>—</td><td><b>Self-play games</b>: the bot plays itself using MCTS</td><td>Vatsl</td></tr>
+  <tr><td>Write the backup into the table</td><td>There is no table to write into</td><td><b>Gradient descent step</b> on the network (next section)</td><td>Samyak</td></tr>
+  <tr><td>Exact mate values at the edges</td><td>Games are long, and results are noisy</td><td><b>Your tablebase</b> gives exact results once few pieces are left, so games end early with the true answer</td><td>Vatsl</td></tr>
+</table></div>
+
+<h2 id="gradient">7. How the network learns from search</h2>
+<p>Yes, it's gradient descent. First, the four symbols, all per position and from the side to move's point of view:</p>
+<div class="tbl"><table>
+  <tr><th>Symbol</th><th>What it is</th><th>Example</th><th>Role</th></tr>
+  <tr><td class="mono">p</td><td>The network's own move probabilities, before any search: its quick first guess at which move to play</td><td class="mono">Qh7 0.2, Qa1 0.5, Kg2 0.3</td><td>network output</td></tr>
+  <tr><td class="mono">v</td><td>The network's guess of who is winning: one number for the whole position, from −1 (loss) to +1 (win)</td><td class="mono">+0.3</td><td>network output</td></tr>
+  <tr><td class="mono">π</td><td>Move probabilities after MCTS: each move's share of the search's visits. Better than p, because the search looked ahead</td><td class="mono">Qh7 0.7, Qa1 0.1, Kg2 0.2</td><td>training target</td></tr>
+  <tr><td class="mono">z</td><td>Who actually won the game this position came from</td><td class="mono">+1, 0 or −1</td><td>training target</td></tr>
+</table></div>
+<p><b>p</b> answers "which move?" and <b>v</b> answers "who's winning?". The network produces both in one pass, using one shared body with two heads. Training pushes p towards π (copy what the search found) and v towards z (predict the real result).</p>
+<div class="note"><p><b>Backlog:</b> add a detailed MCTS section here: selection with PUCT, expansion, evaluation by the network, sign-flipping backup, and how visit counts become π, with a step-through example like the ones above.</p></div>
+<p>Here is the loop.</p>
+
+<h3>What one self-play game produces</h3>
+<p>At every position <code>s</code> in the game, MCTS runs, say, 100 simulations and counts how often it visited each move. Those counts, divided by 100, form <b>π</b>: the search's opinion of how good each move is. When the game ends, every position gets <b>z</b>: the final result from that position's side to move (+1 win, 0 draw, −1 loss). Each <code>(s, π, z)</code> goes into the replay buffer (your Phase 2 component).</p>
+
+<h3>What the network predicts</h3>
+<p>For the same position, the network outputs <b>p</b> (its own move probabilities, before any search) and <b>v</b> (its value guess). Training makes p look more like π and v look more like z:</p>
+<div class="formula">loss = (z − v)²                   <span class="c">value: was the guess right about who wins?</span>
+     − Σ over moves π(a) · log p(a)   <span class="c">policy: cross-entropy, match the search's move choice</span>
+     + c · ‖θ‖²                      <span class="c">keep the weights small</span>
+
+θ ← θ − η · ∇θ loss                 <span class="c">one gradient descent step (η = learning rate)</span></div>
+
+<h3>One position, worked through</h3>
+<p>Say there are three legal moves. Before searching, the network liked Qa1 best. After 100 simulations, MCTS concluded Qh7 is much better. White went on to win the game, so z = +1.</p>
+<div class="tbl"><table>
+  <tr><th>Move</th><th class="num">Network p</th><th class="num">MCTS visits</th><th class="num">Target π</th><th class="num">Gradient on logit (p − π)</th><th>Step moves it</th></tr>
+  <tr><td>Qh7</td><td class="num">0.20</td><td class="num">70</td><td class="num">0.70</td><td class="num neg">−0.50</td><td>up</td></tr>
+  <tr><td>Qa1</td><td class="num">0.50</td><td class="num">10</td><td class="num">0.10</td><td class="num pos">+0.40</td><td>down</td></tr>
+  <tr><td>Kg2</td><td class="num">0.30</td><td class="num">20</td><td class="num">0.20</td><td class="num pos">+0.10</td><td>down a little</td></tr>
+</table></div>
+<p>With softmax and cross-entropy, the gradient on each move's raw score (logit) is simply <code>p − π</code>. Gradient descent subtracts it, so Qh7's score goes up and Qa1's goes down. For the value, the network said v = +0.30 but White won (z = +1). The gradient of <code>(z − v)²</code> is <code>−2(z − v) = −1.4</code>, so the step pushes v upwards. Real training does this on mini-batches of a few hundred random positions from the replay buffer, thousands of times.</p>
+
+<h3>It's the same update as the table, just smoothed</h3>
+<p>Suppose the "network" were just a table with one number per position. A gradient step on <code>½(target − V(s))²</code> gives:</p>
+<div class="formula">V(s) ← V(s) + η · (target − V(s))</div>
+<p>That nudges the entry part of the way towards the target. With η = 1 it simply overwrites the entry, which is exactly what RTDP's backup did. A network uses shared weights instead of separate entries, so one step also shifts the values of <b>similar</b> positions. That's how it generalises to positions it has never seen, and also how it makes mistakes. Your KRK approximation experiment measures exactly this: train a network on positions where we know the exact answer, and see where the smoothing breaks.</p>
+
+<div class="note">
+<p><b>The whole loop, in RL terms.</b> MCTS takes the network's move choices and improves them by looking ahead: π is better than p. That's <b>policy improvement</b>. Training copies the improvement back into the network, the way a backup writes into the table. The next round of searches starts from a better network, finds even better moves, and so on. This is <b>approximate policy iteration</b>, the framing for the whole project.</p>
+</div>
+
+</main>
+
+<footer>Toy graph values are computed live on this page with γ = 0.9. Value iteration uses synchronous sweeps. RTDP starts every trial at S and breaks ties by the least-tried move, then by the listed move order.</footer>
+
+<script>
+(() => {
+  const GAMMA = 0.9;
+  const NODES = {
+    S:{side:'W'}, B1:{side:'B'}, B2:{side:'B'}, W2:{side:'W'}, W3:{side:'W'},
+    B3:{side:'B'}, B4:{side:'B'}, W4:{side:'W'}, W5:{side:'W'}, B5:{side:'B'},
+    M1:{side:'B', terminal:-1, kind:'mate'}, M2:{side:'B', terminal:-1, kind:'mate'}, D:{side:'W', terminal:0, kind:'draw'},
+  };
+  const MOVES = { S:['B2','B1'], B1:['W3','W2'], B2:['W3','D'], W2:['B3','M1'], W3:['B4','B3'],
+    B3:['W2','W4','W5'], B4:['W4'], W4:['B4','M2'], W5:['B5'], B5:['W4'] };
+  const NONTERM = Object.keys(MOVES);
+  const POS = { S:[60,230], B1:[200,140], B2:[200,330], W2:[350,80], W3:[350,250], D:[350,395],
+    M1:[500,32], B3:[500,175], B4:[500,330], W5:[640,95], W4:[640,262], B5:[770,180], M2:[770,345] };
+  const isTerm = k => NODES[k].terminal !== undefined;
+  const r3 = x => (Math.round(x * 1000) / 1000) || 0;
+
+  function initV() { const V = {}; for (const k in NODES) V[k] = isTerm(k) ? NODES[k].terminal : 0; return V; }
+  function backup(V, s) {
+    const opts = MOVES[s].map(c => ({ c, v: V[c], q: r3(-GAMMA * V[c]) }));
+    return { opts, best: Math.max(...opts.map(o => o.q)) };
+  }
+  function valueIteration() {
+    let V = initV(); const sweeps = []; let backups = 0;
+    for (let it = 1; it < 50; it++) {
+      const old = { ...V }; const rows = []; let changed = false;
+      for (const s of NONTERM) {
+        const { opts, best } = backup(old, s); backups++; V[s] = best;
+        if (best !== old[s]) changed = true;
+        rows.push({ s, opts, old: old[s], val: best });
+      }
+      sweeps.push({ it, rows, changed, backups, V: { ...V } });
+      if (!changed) break;
+    }
+    return sweeps;
+  }
+  function rtdp(start = 'S', maxTrials = 30) {
+    const V = initV(); const tried = {};
+    NONTERM.forEach(s => { tried[s] = {}; MOVES[s].forEach(c => tried[s][c] = 0); });
+    const exact = valueIteration().at(-1).V;
+    const steps = []; const touched = new Set(); let backups = 0;
+    for (let t = 1; t <= maxTrials; t++) {
+      let s = start; let n = 0; const path = [];
+      while (!isTerm(s) && n < 40) {
+        const { opts, best } = backup(V, s); const old = V[s]; V[s] = best; backups++; touched.add(s);
+        const tied = opts.filter(o => o.q === best).sort((a, b) => tried[s][a.c] - tried[s][b.c]);
+        const pick = tied[0].c; tried[s][pick]++;
+        path.push([s, pick]);
+        steps.push({ trial: t, s, opts, old, val: best, pick, tie: tied.length > 1, backups,
+          touched: new Set(touched), V: { ...V }, path: path.slice() });
+        s = pick; n++;
+      }
+      const line = []; let x = start;
+      while (MOVES[x] && line.length < 20) { line.push(x); const { opts, best } = backup(V, x); x = opts.find(o => o.q === best).c; }
+      const done = line.every(q => V[q] === exact[q]);
+      steps.push({ trial: t, end: s, backups, touched: new Set(touched), V: { ...V }, path: path.slice(), done });
+      if (done) break;
+    }
+    return { steps, exact };
+  }
+
+  // ---------- rendering ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const fmt = v => v === 0 ? '0' : (v > 0 ? '+' : '−') + String(Math.abs(v));
+  const cls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+  const EDGES = [];
+  for (const a in MOVES) for (const b of MOVES[a]) EDGES.push([a, b]);
+  const hasRev = (a, b) => (MOVES[b] || []).includes(a);
+  const radius = k => isTerm(k) ? 30 : 22;
+
+  let gid = 0;
+  function makeGraph(svg, showValues) {
+    const id = 'g' + (gid++);
+    const defs = el('defs', {}, svg);
+    for (const [name, c] of [['', 'arrow'], ['-trail', 'arrow-trail'], ['-active', 'arrow-active']]) {
+      const m = el('marker', { id: id + 'm' + name, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+      el('path', { d: 'M0,0 L10,5 L0,10 z', class: c }, m);
+    }
+    const edgeEls = {};
+    const gEdges = el('g', {}, svg);
+    for (const [a, b] of EDGES) {
+      const [x1, y1] = POS[a], [x2, y2] = POS[b];
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+      const off = hasRev(a, b) ? 22 : 0;
+      const cx = (x1 + x2) / 2 + (-dy / L) * off, cy = (y1 + y2) / 2 + (dx / L) * off;
+      const u = (px, py, r) => { const vx = cx - px, vy = cy - py, l = Math.hypot(vx, vy); return [px + vx / l * r, py + vy / l * r]; };
+      const [sx, sy] = u(x1, y1, radius(a) + 2), [ex, ey] = u(x2, y2, radius(b) + 4);
+      edgeEls[a + '-' + b] = el('path', { d: `M${sx},${sy} Q${cx},${cy} ${ex},${ey}`, class: 'edge', 'marker-end': `url(#${id}m)` }, gEdges);
+    }
+    const nodeEls = {}, valEls = {};
+    const gNodes = el('g', {}, svg);
+    for (const k in NODES) {
+      const [x, y] = POS[k];
+      const term = isTerm(k);
+      const g = el('g', { class: 'node ' + (term ? 't' : NODES[k].side.toLowerCase()) }, gNodes);
+      if (term) {
+        el('rect', { x: x - 30, y: y - 17, width: 60, height: 34, rx: 6, class: 'ring' }, g);
+        el('rect', { x: x - 28, y: y - 15, width: 56, height: 30, rx: 5 }, g);
+        const t = el('text', { x, y, class: 'lbl' }, g); t.textContent = NODES[k].kind;
+      } else {
+        el('circle', { cx: x, cy: y, r: 27, class: 'ring' }, g);
+        el('circle', { cx: x, cy: y, r: 22 }, g);
+        const t = el('text', { x, y, class: 'lbl' }, g); t.textContent = k;
+        if (showValues) { valEls[k] = el('text', { x, y: y + 42, class: 'val' }, svg); }
+      }
+      nodeEls[k] = g;
+    }
+    // value labels drawn last so they sit above edges
+    for (const k in valEls) svg.appendChild(valEls[k]);
+
+    function update(V, o = {}) {
+      for (const k in nodeEls) {
+        const n = nodeEls[k];
+        n.classList.toggle('changed', !!(o.changed && o.changed.has(k)));
+        n.classList.toggle('current', o.current === k);
+        n.classList.toggle('unvisited', !!(o.visited && !isTerm(k) && !o.visited.has(k)));
+      }
+      for (const k in valEls) {
+        const v = V[k]; const t = valEls[k];
+        t.textContent = fmt(v);
+        t.setAttribute('class', 'val ' + cls(v) + (o.wrong && o.wrong.has(k) ? ' wrong' : ''));
+      }
+      for (const key in edgeEls) {
+        const e = edgeEls[key];
+        const active = o.active === key, trail = o.trail && o.trail.has(key);
+        e.setAttribute('class', 'edge' + (active ? ' active' : trail ? ' trail' : ''));
+        e.setAttribute('marker-end', `url(#${id}m${active ? '-active' : trail ? '-trail' : ''})`);
+      }
+    }
+    return { update };
+  }
+
+  makeGraph(document.getElementById('g-static'), false);
+
+  // ---------- value iteration widget ----------
+  const sweeps = valueIteration();
+  const viGraph = makeGraph(document.getElementById('g-vi'), true);
+  const VI_SAY = {
+    1: 'Only <b>W2</b> and <b>W4</b> change. Each has a move straight into checkmate, so each becomes mate-in-1 (+0.9). The other 8 backups find nothing, because their neighbours are all still 0.',
+    2: '<b>B4</b> and <b>B5</b> are lost (−0.81): their only move goes to W4, which is mate-in-1 for White. <b>B3</b> is not lost yet, because its move to W5 still looks like 0, a possible escape.',
+    3: '<b>W3</b> and <b>W5</b> can now move into a lost Black position, so they win in 2 (+0.729).',
+    4: '<b>B1</b> and <b>B3</b> are finally lost: every one of their escapes is closed. Black picks the slowest loss (−0.656). <b>B2</b> stays at 0, because Black can capture the queen there.',
+    5: '<b>S</b> learns it is winning (+0.59) by playing to B1, and it avoids B2, where Black escapes with a draw.',
+    6: 'Nothing changed, so value iteration stops. Every value is now exact.',
+  };
+  let viIdx = 0;
+  function viRender() {
+    const V = viIdx === 0 ? initV() : sweeps[viIdx - 1].V;
+    const sw = viIdx === 0 ? null : sweeps[viIdx - 1];
+    const changed = new Set(sw ? sw.rows.filter(r => r.old !== r.val).map(r => r.s) : []);
+    viGraph.update(V, { changed });
+    document.getElementById('vi-sweep').textContent = viIdx;
+    document.getElementById('vi-backups').textContent = sw ? sw.backups : 0;
+    document.getElementById('vi-title').textContent = viIdx === 0 ? 'Before sweep 1: all guesses are 0' : (sw.changed ? `After sweep ${viIdx}` : `Sweep ${viIdx}: converged`);
+    document.getElementById('vi-say').innerHTML = viIdx === 0 ? 'Press <b>Next sweep</b>. Each sweep backs up all 10 positions using the values from the previous sweep.' : VI_SAY[viIdx];
+    const tbl = document.getElementById('vi-table');
+    if (!sw) { tbl.innerHTML = ''; }
+    else {
+      tbl.innerHTML = '<table><tr><th>Position</th><th>Each move: −0.9 × V(next)</th><th class="num">Old</th><th class="num">New</th></tr>' +
+        sw.rows.map(r => `<tr${r.old !== r.val ? ' style="background:var(--active-soft)"' : ''}><td class="mono">${r.s}</td><td class="mono" style="font-size:.85rem">${
+          r.opts.map(o => `${o.c}: −0.9×(${fmt(o.v)}) = <span class="${cls(o.q)}">${fmt(o.q)}</span>`).join('<br>')
+        }</td><td class="num ${cls(r.old)}">${fmt(r.old)}</td><td class="num ${cls(r.val)}"><b>${fmt(r.val)}</b></td></tr>`).join('') + '</table>';
+    }
+    document.getElementById('vi-next').disabled = document.getElementById('vi-all').disabled = viIdx >= sweeps.length;
+  }
+  document.getElementById('vi-next').onclick = () => { if (viIdx < sweeps.length) { viIdx++; viRender(); } };
+  document.getElementById('vi-all').onclick = () => { viIdx = sweeps.length; viRender(); };
+  document.getElementById('vi-reset').onclick = () => { viIdx = 0; viRender(); };
+  viRender();
+
+  // ---------- RTDP widget ----------
+  const R = rtdp();
+  const rtGraph = makeGraph(document.getElementById('g-rtdp'), true);
+  let rIdx = -1;
+  const sideName = s => NODES[s].side === 'W' ? 'White' : 'Black';
+  function rRender() {
+    const st = rIdx < 0 ? null : R.steps[rIdx];
+    const V = st ? st.V : initV();
+    const trail = new Set(st ? st.path.map(([a, b]) => a + '-' + b) : []);
+    const isLast = rIdx === R.steps.length - 1;
+    const opts = { trail };
+    if (st && !st.end) { opts.current = st.s; opts.active = st.s + '-' + st.pick; opts.trail.delete(opts.active); }
+    if (isLast) {
+      opts.visited = st.touched;
+      opts.wrong = new Set(NONTERM.filter(k => V[k] !== R.exact[k]));
+    }
+    rtGraph.update(V, opts);
+    document.getElementById('rtdp-trialn').textContent = st ? st.trial : 0;
+    document.getElementById('rtdp-backups').textContent = st ? st.backups : 0;
+    document.getElementById('rtdp-touched').textContent = st ? st.touched.size : 0;
+    const title = document.getElementById('rtdp-title');
+    const say = document.getElementById('rtdp-say');
+    if (!st) {
+      title.textContent = 'Before trial 1: all guesses are 0';
+      say.innerHTML = 'Press <b>Next backup</b>. Each trial starts at S.';
+    } else if (!st.end) {
+      title.textContent = `Trial ${st.trial}: at ${st.s}`;
+      const calc = st.opts.map(o => `  → ${o.c}:  −0.9 × (${fmt(o.v)}) = ${fmt(o.q)}`).join('\n');
+      const changed = st.old !== st.val ? `V(${st.s}) changes ${fmt(st.old)} → <b>${fmt(st.val)}</b>.` : `V(${st.s}) stays ${fmt(st.val)}.`;
+      say.innerHTML = `${sideName(st.s)} to move at <b>${st.s}</b>. Back it up using the current table: ${changed} ` +
+        `${sideName(st.s)} plays <b>${st.pick}</b>${st.tie ? ' (a tie, so it picks the move tried least often)' : ''}.` +
+        `<span class="calc">${calc}</span>`;
+    } else {
+      title.textContent = `Trial ${st.trial} finished`;
+      const how = st.end === 'D' ? 'a draw (Black captured the queen)' : 'checkmate';
+      say.innerHTML = `Trial ${st.trial} ends in ${how}. ` + (st.done
+        ? `S now has its exact value and the greedy line from S is optimal, so RTDP stops. Struck-through values are still wrong (B3, W5, B5), and dashed positions were never visited. None of them affect play from S.`
+        : `Start the next trial at S.`);
+    }
+    const end = rIdx >= R.steps.length - 1;
+    ['rtdp-next', 'rtdp-trial', 'rtdp-all'].forEach(b => document.getElementById(b).disabled = end);
+  }
+  document.getElementById('rtdp-next').onclick = () => { if (rIdx < R.steps.length - 1) { rIdx++; rRender(); } };
+  document.getElementById('rtdp-trial').onclick = () => {
+    if (rIdx >= R.steps.length - 1) return;
+    rIdx++; while (rIdx < R.steps.length - 1 && !R.steps[rIdx].end) rIdx++; rRender();
+  };
+  document.getElementById('rtdp-all').onclick = () => { rIdx = R.steps.length - 1; rRender(); };
+  document.getElementById('rtdp-reset').onclick = () => { rIdx = -1; rRender(); };
+  rRender();
+})();
+</script>
