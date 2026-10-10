@@ -1,0 +1,14 @@
+{
+  "epochs": 40,
+  "fvi_rounds": 60,
+  "fvi_epochs": 2,
+  "fvi_hidden": 256,
+  "mate_starts": 500,
+  "max_moves": 50,
+  "seed": 0,
+  "threads": 2,
+  "quick": false,
+  "report_dir": "reports/midsem",
+  "gamma": 0.9,
+  "created": "2026-10-10T12:30:32"
+}

@@ -1,0 +1,14 @@
+player,simulations,positions,top_move_agreement,mean_score_loss,optimal_move_rate,keeps_result_rate,optimal_dtm_le5,optimal_dtm_gt5,seconds
+random,0,100,0.13,502.35,0.27,0.95,1.0,0.2474,0.6
+"MCTS, uniform evaluator",1,100,0.22,402.74,0.33,0.96,1.0,0.3093,0.6
+"MCTS, uniform evaluator",16,100,0.22,402.74,0.33,0.96,1.0,0.3093,1.2
+"MCTS, uniform evaluator",64,100,0.22,402.74,0.33,0.96,1.0,0.3093,2.7
+"MCTS, uniform evaluator",256,100,0.22,402.7,0.33,0.96,1.0,0.3093,9.6
+"MCTS, uniform evaluator",1024,100,0.22,402.62,0.33,0.96,1.0,0.3093,38.3
+"MCTS, learned value (MLP-64)",1,100,0.22,402.74,0.33,0.96,1.0,0.3093,0.5
+"MCTS, learned value (MLP-64)",16,100,0.38,201.44,0.57,0.98,1.0,0.5567,1.7
+"MCTS, learned value (MLP-64)",64,100,0.49,1.2,0.68,1.0,1.0,0.6701,4.1
+"MCTS, learned value (MLP-64)",256,100,0.51,100.65,0.7,0.99,1.0,0.6907,15.4
+"MCTS, learned value (MLP-64)",1024,100,0.47,0.92,0.7,1.0,1.0,0.6907,69.1
+"MCTS, DPEvaluator (sanity)",16,100,1.0,0.0,1.0,1.0,1.0,1.0,2.2
+TablebasePlayer,0,100,1.0,0.0,1.0,1.0,1.0,1.0,0.5

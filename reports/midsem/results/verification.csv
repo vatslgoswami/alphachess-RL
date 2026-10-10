@@ -1,0 +1,13 @@
+table,check,checked,agree,ok,details
+KQK,bellman,46137,46137,True,"{""backup_errors"": 0, ""best_move_errors"": 0}"
+KQK,stockfish_dtm,1000,1000,True,"{""exact"": 394, ""longer"": 217, ""not_found"": 327, ""shorter"": 0, ""draw_ok"": 62, ""draw_bad"": 0, ""errors"": []}"
+KQK,syzygy_wdl,46137,46137,True,"{""mismatches"": []}"
+KQK,value_iteration,46137,46137,True,"{""sweeps"": 21, ""backups"": 968877, ""seconds"": 0.101}"
+KRK,bellman,50015,50015,True,"{""backup_errors"": 0, ""best_move_errors"": 0}"
+KRK,stockfish_dtm,1000,1000,True,"{""exact"": 147, ""longer"": 178, ""not_found"": 609, ""shorter"": 0, ""draw_ok"": 66, ""draw_bad"": 0, ""errors"": []}"
+KRK,syzygy_wdl,50015,50015,True,"{""mismatches"": []}"
+KRK,value_iteration,50015,50015,True,"{""sweeps"": 33, ""backups"": 1650495, ""seconds"": 0.149}"
+KPK,bellman,165676,165676,True,"{""backup_errors"": 0, ""best_move_errors"": 0}"
+KPK,stockfish_dtm,1000,1000,True,"{""exact"": 49, ""longer"": 89, ""not_found"": 536, ""shorter"": 0, ""draw_ok"": 326, ""draw_bad"": 0, ""errors"": []}"
+KPK,syzygy_wdl,165676,165676,True,"{""mismatches"": []}"
+KPK,value_iteration,165676,165676,True,"{""sweeps"": 39, ""backups"": 6461364, ""seconds"": 0.387}"

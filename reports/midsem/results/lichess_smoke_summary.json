@@ -1,0 +1,47 @@
+{
+  "games_seen": 29840,
+  "games_kept_headers": 5575,
+  "games_with_evals": 625,
+  "games_used": 625,
+  "positions": 5000,
+  "positions_by_split": {
+    "train": 4456,
+    "test": 296,
+    "val": 248
+  },
+  "seconds": 21.405658384000162,
+  "eval_cp_histogram": {
+    "<-1000": 37,
+    "[-1000,-500)": 334,
+    "[-500,-200)": 468,
+    "[-200,-100)": 326,
+    "[-100,-50)": 328,
+    "[-50,0)": 575,
+    "[0,50)": 894,
+    "[50,100)": 420,
+    "[100,200)": 379,
+    "[200,500)": 579,
+    "[500,1000)": 413,
+    ">=1000": 41
+  },
+  "mate_positions": 206,
+  "games_per_second": 1394.0,
+  "positions_per_second": 233.6,
+  "source": "https://database.lichess.org/standard/lichess_db_standard_rated_2024-01.pgn.zst",
+  "config": {
+    "min_elo": 1800,
+    "min_base_time": 180,
+    "positions_per_game": 8,
+    "skip_first_plies": 8,
+    "require_eval": true,
+    "val_frac": 0.05,
+    "test_frac": 0.05
+  },
+  "target": 5000,
+  "shards": [
+    "train-00000.parquet",
+    "val-00000.parquet",
+    "test-00000.parquet"
+  ],
+  "extrapolated_hours_for_2M": 2.38
+}

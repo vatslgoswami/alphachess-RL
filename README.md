@@ -33,9 +33,15 @@ Agriya's Phase 1 search and evaluation implementation is documented in
 [`docs/SEARCH_EVAL.md`](docs/SEARCH_EVAL.md). It includes batched PUCT, the UCI wrapper, paired
 matches, Stockfish evaluation, Elo intervals, puzzle/position metrics, and the midsem plotting
 workflow. A conceptual walkthrough for teammates and teaching staff is in
-[`docs/PHASE1_SEARCH_EVAL_EXPLAINER.md`](docs/PHASE1_SEARCH_EVAL_EXPLAINER.md). The original
+[`docs/Agriya_Phase1_Search_Eval_Explainer.md`](docs/Agriya_Phase1_Search_Eval_Explainer.md). The original
 implementation plan is in
 [`docs/AGRIYA_PHASE1_PLAN.md`](docs/AGRIYA_PHASE1_PLAN.md).
+
+Each of us writes an explainer for our own track, so the whole team knows the theory behind every part:
+
+- Agriya (search and evaluation): [`docs/Agriya_Phase1_Search_Eval_Explainer.md`](docs/Agriya_Phase1_Search_Eval_Explainer.md)
+- Vatsl (endgame DP, value iteration, RTDP): [`docs/Vatsl_Endgame_DP_Primer.html`](docs/Vatsl_Endgame_DP_Primer.html). Open it in a browser; the graphs are interactive. Live copy: https://claude.ai/artifact/1Mw6JMAVXHJE6n1EDXdvtP
+- Samyak (encoding, network, training): to do
 
 ## Setup
 
