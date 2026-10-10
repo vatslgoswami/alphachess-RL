@@ -1,0 +1,7 @@
+method,starts,trials_or_sweeps,backups,positions_touched,exact_entries,wrong_entries,seconds,converged
+retrograde analysis,all,33 levels,524507,50015,50015,0,0.11,True
+synchronous value iteration,all,33 sweeps,1650495,50015,50015,0,0.15,True
+"RTDP, single value, V0 = 0 (primer)",1000,"48,322 trials",2294921,49619,3649,45970,81.39,False
+"RTDP with bounds (U0 = +1, L0 = -1)",10,"2,371 trials",605122,49928,11602,38326,25.0,True
+"RTDP with bounds (U0 = +1, L0 = -1)",100,"3,517 trials",646850,49923,20403,29520,69.4,True
+"RTDP with bounds (U0 = +1, L0 = -1)",1000,"5,566 trials",679356,49923,23802,26121,73.48,True

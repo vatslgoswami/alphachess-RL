@@ -302,3 +302,134 @@ def test_syzygy_agrees_on_every_kpk_position(kpk):
     table, _ = kpk
     result = verify.check_syzygy(table, str(SYZYGY_DIR))
     assert result.ok, result.details
+
+
+# --- T5: value iteration vs RTDP --------------------------------------------------------------
+
+
+def _short_starts(table, graph, max_dtm: int, count: int) -> np.ndarray:
+    from alphachess.endgames.index import decode
+
+    stm = decode(graph.spec, graph.slots)[0]
+    dtm = table.dtm[graph.slots]
+    pool = np.flatnonzero((stm == 0) & (dtm > 0) & (dtm <= max_dtm))
+    return np.random.default_rng(0).choice(pool, count, replace=False)
+
+
+def _exact(table, graph, gamma=0.9):
+    from alphachess.endgames.solve import best_edges, gamma_values
+
+    wdl = np.concatenate([table.wdl[graph.slots], graph.leaf_wdl])
+    dtm = np.concatenate([table.dtm[graph.slots], graph.leaf_dtm])
+    return wdl, dtm, gamma_values(wdl, dtm, gamma), best_edges(graph, wdl, dtm)
+
+
+def test_bounded_rtdp_solves_short_starts_with_exact_values(solved):
+    from alphachess.endgames.rtdp import BoundedRTDP
+
+    table, graph = solved["KQK"]
+    _, dtm, values, defence = _exact(table, graph)
+    starts = _short_starts(table, graph, 3, 5)
+    rtdp = BoundedRTDP(graph, values, defence, gamma=0.9)
+    result = rtdp.run(starts, dtm, max_passes=3000)
+    assert result.converged
+    for s in starts:
+        assert rtdp.bounds(int(s))[1] == pytest.approx(values[s])
+    assert result.touched < graph.n  # only part of the table was needed
+
+
+def test_plain_rtdp_backup_matches_bellman(solved):
+    from alphachess.endgames.rtdp import RTDP
+
+    table, graph = solved["KQK"]
+    _, dtm, values, defence = _exact(table, graph)
+    start = int(_short_starts(table, graph, 1, 1)[0])  # mate in 1
+    rtdp = RTDP(graph, values, defence, gamma=0.9)
+    rtdp.trial(start)
+    assert rtdp.V[start] == pytest.approx(0.9)
+    assert rtdp.solved(start, int(dtm[start]))
+
+
+# --- T7: harness hooks ------------------------------------------------------------------------
+
+
+def test_dp_evaluator_puts_all_mass_on_the_table_move(solved):
+    from alphachess.endgames.hooks import DPEvaluator
+
+    mate_in_one = chess.Board("k7/8/1K6/8/8/8/8/7R w - - 0 1")
+    priors, values = DPEvaluator()([mate_in_one, chess.Board()])
+    assert priors[0] == {probe.best_move(mate_in_one): 1.0}
+    assert values[0] == 1.0
+    assert len(priors[1]) == 20 and values[1] == 0.0  # uniform fallback
+    _, gamma_values = DPEvaluator(gamma=0.9)([mate_in_one])
+    assert gamma_values[0] == pytest.approx(0.9)
+
+
+def test_tablebase_player_and_fallback(solved):
+    from alphachess.endgames.hooks import TablebasePlayer
+    from alphachess.eval.player import RandomPlayer
+
+    player = TablebasePlayer(RandomPlayer(seed=1))
+    board = chess.Board("k7/8/1K6/8/8/8/8/7R w - - 0 1")
+    assert player.select_move(board).move == probe.best_move(board)
+    start = chess.Board()
+    assert player.select_move(start).move in start.legal_moves
+
+
+def test_exact_reference_analyser_scores(solved):
+    from alphachess.endgames.hooks import WIN_SCORE, exact_reference_analyser
+
+    board = chess.Board("k7/8/1K6/8/8/8/8/7R w - - 0 1")
+    best, scores = exact_reference_analyser(board)
+    assert scores[best] == WIN_SCORE - 1
+    board.push(best)
+    assert board.is_checkmate()
+    hanging = chess.Board("8/8/8/8/8/2k5/2R5/7K b - - 0 1")
+    best, scores = exact_reference_analyser(hanging)
+    assert best == chess.Move.from_uci("c3c2") and scores[best] == 0
+    assert all(v < 0 for m, v in scores.items() if m != best)
+
+
+def test_suite_with_evaluate_positions(solved):
+    from alphachess.endgames.hooks import TablebasePlayer, exact_reference_analyser, load_suite
+    from alphachess.eval.metrics import evaluate_positions
+    from alphachess.eval.player import RandomPlayer
+
+    suite = load_suite(repo_path("data/endgames/suite.fen"))
+    assert {k: len(v) for k, v in suite.items()} == {"KQK": 100, "KRK": 100, "KPK": 100}
+    boards = suite["KRK"][:15]
+    summary = evaluate_positions(TablebasePlayer(RandomPlayer()), boards, exact_reference_analyser)
+    assert summary.top_move_agreement == 1.0
+    assert summary.mean_centipawn_loss == 0.0
+
+
+# --- T6: approximation study (needs PyTorch) ---------------------------------------------------
+
+
+def test_approx_metrics_are_perfect_for_exact_values(solved):
+    from alphachess.endgames import approx
+
+    table, _ = solved["KRK"]
+    data = approx.load_krk(table=table)
+    assert data.inputs["onehot"].shape == (data.graph.n, 193)
+    assert len(data.train) + len(data.test) == data.graph.n
+    starts = approx.mate_start_positions(data, 50, 0)
+    res = approx.evaluate(data, data.value[: data.graph.n].copy(), starts)
+    assert res["mse"] == 0.0
+    for key in ("sign_acc", "optimal_move", "keeps_result", "mate_rate"):
+        assert res[key] == 1.0, key
+
+
+def test_fitted_value_iteration_smoke(solved):
+    pytest.importorskip("torch")
+    from alphachess.endgames import approx
+
+    table, _ = solved["KRK"]
+    data = approx.load_krk(table=table)
+    log = []
+    model = approx.train_fitted_vi(
+        data, "features", 16, rounds=2, epochs_per_round=1, seed=0, log=log
+    )
+    assert len(log) == 2
+    pred = approx.predict(model, data.inputs["features"])
+    assert pred.shape == (data.graph.n,) and np.all(np.abs(pred) <= 1)
