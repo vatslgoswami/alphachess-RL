@@ -33,6 +33,9 @@ lichess:                            # owner: Vatsl
   stockfish_depth: 12
   value_scale: 400                  # z = tanh(cp / value_scale)
   shard_size: 100000
+  require_eval: true                # only games with Lichess [%eval] annotations (no engine run)
+  val_frac: 0.05                    # split by a hash of the game id
+  test_frac: 0.05
 
 mcts:                               # owner: Agriya
   simulations: 64
