@@ -16,6 +16,11 @@ data/*
 data/openings/*
 !data/openings/README.md
 !data/openings/smoke.fen
+!data/syzygy/
+data/syzygy/*
+!data/endgames/
+data/endgames/*
+!data/endgames/suite.fen
 runs/*
 !runs/.gitkeep
 *.pt
@@ -25,6 +30,9 @@ runs/*
 *.npy
 *.rtbw
 *.rtbz
+# The 3-piece Syzygy tables are ~33 KB in total, so they are committed.
+!data/syzygy/K[QRP]vK.rtbw
+!data/syzygy/K[QRP]vK.rtbz
 *.pgn
 *.pgn.zst
 *.parquet

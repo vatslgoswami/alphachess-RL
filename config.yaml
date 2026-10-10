@@ -21,6 +21,7 @@ endgames:                           # owner: Vatsl
   tables: [KQK, KRK, KPK]
   gamma: 1.0                        # undiscounted SSP; mate distance from DTM
   verify_samples: 10000             # positions checked against Syzygy per table
+  approx_gamma: 0.9                 # γ for γ-values (±γ^dtm) in VI, RTDP and the approximation study
 
 lichess:                            # owner: Vatsl
   month: "2024-01"                  # database.lichess.org standard rated month
