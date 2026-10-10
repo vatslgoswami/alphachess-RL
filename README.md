@@ -32,7 +32,9 @@ The interfaces between components (encoding format, checkpoint format, replay re
 Agriya's Phase 1 search and evaluation implementation is documented in
 [`docs/SEARCH_EVAL.md`](docs/SEARCH_EVAL.md). It includes batched PUCT, the UCI wrapper, paired
 matches, Stockfish evaluation, Elo intervals, puzzle/position metrics, and the midsem plotting
-workflow. The original implementation plan is in
+workflow. A conceptual walkthrough for teammates and teaching staff is in
+[`docs/PHASE1_SEARCH_EVAL_EXPLAINER.md`](docs/PHASE1_SEARCH_EVAL_EXPLAINER.md). The original
+implementation plan is in
 [`docs/AGRIYA_PHASE1_PLAN.md`](docs/AGRIYA_PHASE1_PLAN.md).
 
 ## Setup
