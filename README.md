@@ -41,7 +41,7 @@ Each of us writes an explainer for our own track, so the whole team knows the th
 
 - Agriya (search and evaluation): [`docs/Agriya_Phase1_Search_Eval_Explainer.md`](docs/Agriya_Phase1_Search_Eval_Explainer.md)
 - Vatsl (endgame DP, value iteration, RTDP): [`docs/Vatsl_Endgame_DP_Primer.html`](docs/Vatsl_Endgame_DP_Primer.html). Open it in a browser; the graphs are interactive. Live copy: https://claude.ai/artifact/1Mw6JMAVXHJE6n1EDXdvtP
-- Samyak (encoding, network, training): to do
+- Samyak (encoding, network, supervised and RL training): [`docs/Samyak_Encoding_Network_Training_Explainer.md`](docs/Samyak_Encoding_Network_Training_Explainer.md)
 
 ## Setup
 
