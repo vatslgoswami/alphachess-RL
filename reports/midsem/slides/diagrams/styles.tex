@@ -1,0 +1,19 @@
+% Shared TikZ styles for the midsem diagrams (used by the slides and the standalone figures).
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc, shapes.geometric}
+
+\definecolor{acNet}{HTML}{3A52C4}      % network / training (Samyak)
+\definecolor{acSearch}{HTML}{C98410}   % search / evaluation (Agriya)
+\definecolor{acDP}{HTML}{1F7A4B}       % exact endgames (Vatsl)
+\definecolor{acData}{HTML}{6B4FA0}     % data
+\definecolor{acInk}{HTML}{1B2330}
+\definecolor{acMuted}{HTML}{5B6676}
+
+\tikzset{
+  box/.style={draw=#1, line width=0.9pt, rounded corners=3pt, fill=#1!8,
+              align=center, inner sep=4pt, font=\footnotesize, text=acInk},
+  box/.default=acInk,
+  arr/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=acInk!80},
+  lbl/.style={font=\scriptsize, text=acMuted, align=center},
+  stage/.style={draw=acMuted!60, dashed, rounded corners=6pt, inner sep=7pt},
+  stagetitle/.style={font=\scriptsize\bfseries, text=acMuted},
+}

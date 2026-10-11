@@ -1,0 +1,52 @@
+% The full training pipeline: supervised start (stage 1), then the self-play RL loop (stage 2)
+% with the tablebase cut-off at 5 or fewer pieces. Colours: blue = network/training (Samyak),
+% orange = search/evaluation (Agriya), green = exact endgames (Vatsl), purple = data.
+\begin{tikzpicture}[node distance=6mm and 9mm]
+  % ---------------- Stage 1: supervised start ----------------
+  \node[box=acData, minimum width=2.6cm] (lichess)
+    {\textbf{Lichess games}\\Elo $\ge$ 1800, 8 positions/game\\Stockfish eval};
+  \node[box=acNet, right=of lichess, minimum width=2.4cm] (enc)
+    {\textbf{Encoder}\\board $\to$ 19$\times$8$\times$8\\move $\to$ 1 of 4672};
+  \node[box=acData, right=of enc, minimum width=2.6cm] (shards)
+    {\textbf{Training shards}\\$(s,\ \pi{=}\text{human move},$\\$z{=}\tanh(\text{cp}/400))$};
+  \node[box=acNet, right=of shards, minimum width=2.3cm] (sltrain)
+    {\textbf{Supervised}\\\textbf{training}\\CE $+$ MSE};
+  \draw[arr] (lichess) -- (enc);
+  \draw[arr] (enc) -- (shards);
+  \draw[arr] (shards) -- (sltrain);
+
+  % ---------------- Stage 2: self-play RL loop ----------------
+  \node[box=acNet, below=15mm of sltrain, minimum width=2.3cm, line width=1.4pt] (net)
+    {\textbf{Network} $f_\theta$\\$s \mapsto (p,\ v)$};
+  \node[box=acSearch, left=12mm of net, minimum width=2.6cm] (mcts)
+    {\textbf{MCTS} (PUCT)\\64 simulations\\improved policy $\pi$};
+  \node[box=acSearch, left=12mm of mcts, minimum width=2.7cm] (selfplay)
+    {\textbf{Self-play}\\French Defense openings\\play $a \sim \pi$};
+  \node[box=acDP, below=9mm of selfplay, minimum width=2.7cm] (tb)
+    {\textbf{Tablebase cut-off}\\$\le$ 5 pieces: stop,\\exact Syzygy result};
+  \node[box=acData, right=12mm of tb, minimum width=2.6cm] (replay)
+    {\textbf{Replay buffer}\\$(s,\ \pi,\ z)$};
+  \node[box=acNet, right=12mm of replay, minimum width=2.3cm] (rltrain)
+    {\textbf{Trainer}\\CE$(\pi, p)$ $+$ $(z-v)^2$};
+
+  \draw[arr] (sltrain) -- node[lbl, right] {initial weights $\theta_0$} (net);
+  \draw[arr] (net) -- node[lbl, above] {$p,\ v$} (mcts);
+  \draw[arr] (mcts) -- node[lbl, above] {$\pi$} (selfplay);
+  \draw[arr] (selfplay) -- node[lbl, left] {game reaches\\$\le$ 5 pieces} (tb);
+  \draw[arr] (tb) -- node[lbl, above] {$z$} (replay);
+  \draw[arr] (replay) -- node[lbl, above] {sample} (rltrain);
+  \draw[arr] (rltrain) -- node[lbl, right] {new $\theta$} (net);
+
+  % ---------------- Evaluation ----------------
+  \node[box=acSearch, right=18mm of net, minimum width=2.4cm] (eval)
+    {\textbf{Evaluation}\\Elo vs Stockfish\\levels};
+  \draw[arr, dashed] (net) -- node[lbl, below, pos=0.62] {checkpoints} (eval);
+
+  % Stage frames
+  \begin{scope}[on background layer]
+    \node[stage, fit=(lichess)(sltrain)] (s1) {};
+    \node[stage, fit=(selfplay)(tb)(rltrain)(net)] (s2) {};
+  \end{scope}
+  \node[stagetitle, anchor=south west] at (s1.north west) {STAGE 1 \,·\, SUPERVISED START (all of chess)};
+  \node[stagetitle, anchor=north west] at (s2.south west) {STAGE 2 \,·\, SELF-PLAY RL = APPROXIMATE POLICY ITERATION};
+\end{tikzpicture}
