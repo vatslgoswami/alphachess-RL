@@ -99,3 +99,12 @@ def test_training_run_end_to_end(tmp_path):
     net = PolicyValueNet(blocks=1, channels=16)
     net.load_state_dict(ckpt["model"])
     assert 0.0 <= summary["val_final"]["policy_top1"] <= 1.0
+
+    # The checkpoint plugs into Agriya's MCTS through the evaluator factory.
+    from alphachess.mcts.search import search
+    from alphachess.model.evaluator import make_evaluator
+
+    evaluator = make_evaluator(summary["checkpoint"], device="cpu")
+    result = search(chess.Board(), evaluator, num_simulations=8)
+    assert sum(result.visits.values()) == 8
+    assert result.best_move in chess.Board().legal_moves
