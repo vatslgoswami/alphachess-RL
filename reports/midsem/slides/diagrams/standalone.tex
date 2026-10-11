@@ -1,0 +1,11 @@
+% Builds the diagrams as separate PDFs/PNGs for docs:
+%   pdflatex -jobname=pipeline "\def\diagram{pipeline}\input{standalone}"
+\documentclass[border=6pt]{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{tikz}
+\input{styles}
+\begin{document}
+\input{\diagram}
+\end{document}
