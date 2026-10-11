@@ -2,7 +2,7 @@
 
 These are the contracts between components. The stubs in `alphachess/` follow them. If you need to change one, open a PR that touches this file and tag the other owners.
 
-Status: **draft**. The encoding owner (Samyak) should confirm §1 and §2 in week 1.
+Status: §1–3 **confirmed** by Samyak (implemented in `alphachess/encoding/board.py` and `alphachess/model/net.py`, tested in `tests/test_encoding.py` and `tests/test_model.py`). The rest is still a draft.
 
 ## 1. Board encoding (`alphachess.encoding`) — Samyak
 
@@ -12,7 +12,13 @@ NUM_PLANES: int                                     # C
 ```
 
 - Always from the **side to move's** perspective: flip the board when black is to move, so "my pieces" are always planes 0–5.
-- Suggested planes (C = 19 with `history: 1`): 6 own pieces, 6 opponent pieces, 1 repetition count, 4 castling rights, 1 side-to-move colour, 1 fifty-move counter / 100.
+- Planes (C = 19 with `history: 1`), indexed `[plane, rank, file]` in the flipped frame:
+  - 0–5: my pawns, knights, bishops, rooks, queens, king;
+  - 6–11: opponent's pawns, knights, bishops, rooks, queens, king;
+  - 12: repetition, all ones if this position occurred before;
+  - 13–14: my castling rights (king-side, queen-side); 15–16: opponent's;
+  - 17: colour of the side to move (ones = White);
+  - 18: halfmove clock / 100.
 
 ## 2. Move encoding — Samyak
 
@@ -23,7 +29,10 @@ index_to_move(index: int, board: chess.Board) -> chess.Move
 legal_mask(board: chess.Board) -> np.ndarray        # bool, shape (4672,)
 ```
 
-- AlphaZero layout: from-square (64) × 73 move types (56 queen-like, 8 knight, 9 underpromotions). Queen promotions use the queen-like planes.
+- AlphaZero layout: `index = from_square * 73 + move_type`, from-square in the flipped frame.
+  - `move_type` 0–55: queen-like, `direction * 7 + (distance − 1)`, directions N, NE, E, SE, S, SW, W, NW. Castling is the king's two-square step; queen promotions live here too.
+  - 56–63: knight moves, in the order of `KNIGHT_DELTAS`.
+  - 64–72: underpromotions, `64 + 3 * piece + (file_delta + 1)`, piece = knight, bishop, rook.
 - Uses the same perspective flip as §1.
 - Invariant (unit test): for every legal move m in a position, `index_to_move(move_to_index(m, b), b) == m`.
 
@@ -32,7 +41,7 @@ legal_mask(board: chess.Board) -> np.ndarray        # bool, shape (4672,)
 ```python
 net = PolicyValueNet(blocks, channels)              # torch.nn.Module
 policy_logits, value = net(x)                       # x: (B, C, 8, 8)
-# policy_logits: (B, 4672) raw logits (mask illegal moves outside the net)
+# policy_logits: (B, 4672) raw logits in move_to_index order (mask illegal moves outside the net)
 # value: (B,) in [-1, 1], from the side to move's perspective
 ```
 
