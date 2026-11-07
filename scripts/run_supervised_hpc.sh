@@ -12,7 +12,9 @@
 #   MONTHS="2024-01 2024-02" TARGET=4000000 GPU=0 bash scripts/run_supervised_hpc.sh all
 #
 # Rough timings (from the 5k smoke run: ~1,400 games scanned/s per process, network-bound):
-#   build:  TARGET=4,000,000 positions per month ~ 5 h, months run in parallel
+#   build (SOURCE=hf, default): Parquet files fetched by WORKERS processes per month, so speed
+#           is mostly your network; TARGET=0 takes every eval game in the month
+#   build (SOURCE=lichess): ~1,400 games/s single stream, TARGET=4,000,000 ~ 5 h per month
 #   encode: ~11,000 positions/s per process, ~6 min per 4M-position month
 #   train:  see the pos/s and eta printed every --eval-every steps
 set -euo pipefail
@@ -20,7 +22,9 @@ cd "$(dirname "$0")/.."
 
 MONTHS=${MONTHS:-"2024-01 2024-02"}
 TARGET=${TARGET:-4000000}            # positions per month (8 per game)
-INSECURE=${INSECURE:-0}              # 1 = skip TLS checks for database.lichess.org (firewalls)
+INSECURE=${INSECURE:-0}              # 1 = skip TLS checks for the data host (firewalls)
+SOURCE=${SOURCE:-hf}                 # hf = Hugging Face Parquet copy (parallel) | lichess = stream
+WORKERS=${WORKERS:-24}               # download+parse processes per month (SOURCE=hf)
 export INSECURE
 GPU=${GPU:-0}
 BLOCKS=${BLOCKS:-6}
@@ -54,6 +58,13 @@ EOF
   nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv || true
   echo "== CPU cores: $(nproc)"
   echo "== disk free here"; df -h . | tail -1
+  echo "== Hugging Face copy of the Lichess database"
+  python -c '
+import os
+from alphachess.lichess.hf import list_month_files
+files = list_month_files("2024-01", insecure=os.environ.get("INSECURE") == "1")
+print(f"Python can reach Hugging Face: {len(files)} Parquet files for 2024-01")
+' || echo "NO ACCESS to the Hugging Face dataset from Python"
   echo "== network to Lichess (certificates: ${SSL_CERT_FILE:-system default})"
   python -c '
 import os, ssl, sys, urllib.request
@@ -77,8 +88,13 @@ build() {
     echo "building $m -> $LOGS/build_$m.log"
     insecure_flag=""
     [ "$INSECURE" = "1" ] && insecure_flag="--insecure-download"
-    python -m scripts.build_lichess_dataset --month "$m" --target "$TARGET" $insecure_flag \
-      > "$LOGS/build_$m.log" 2>&1 &
+    if [ "$SOURCE" = "hf" ]; then
+      python -m scripts.build_lichess_hf --month "$m" --target "$TARGET" \
+        --workers "$WORKERS" $insecure_flag > "$LOGS/build_$m.log" 2>&1 &
+    else
+      python -m scripts.build_lichess_dataset --month "$m" --target "$TARGET" $insecure_flag \
+        > "$LOGS/build_$m.log" 2>&1 &
+    fi
   done
   wait
   for m in $MONTHS; do tail -n 3 "$LOGS/build_$m.log"; done
