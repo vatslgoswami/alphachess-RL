@@ -22,6 +22,7 @@ import json
 import math
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -84,17 +85,27 @@ def count_positions(paths: list[str]) -> int:
 def iterate_batches(
     paths: list[str], batch_size: int, rng: np.random.Generator | None = None
 ) -> Iterator[dict[str, np.ndarray]]:
-    """Yield batches from shards. With ``rng``: shuffled shard order and rows; else in order."""
+    """Yield batches from shards. With ``rng``: shuffled shard order and rows; else in order.
+
+    The next shard is decompressed in a background thread while the current one is trained on,
+    so the GPU does not sit idle during ``np.load`` (a 100k-position shard takes seconds).
+    """
     order = list(paths)
     if rng is not None:
         rng.shuffle(order)
-    for path in order:
-        shard = load_shard(path)
-        n = len(shard["z"])
-        rows = rng.permutation(n) if rng is not None else np.arange(n)
-        for start in range(0, n, batch_size):
-            take = rows[start : start + batch_size]
-            yield {k: v[take] for k, v in shard.items()}
+    if not order:
+        return
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(load_shard, order[0])
+        for i in range(len(order)):
+            shard = pending.result()
+            if i + 1 < len(order):
+                pending = pool.submit(load_shard, order[i + 1])
+            n = len(shard["z"])
+            rows = rng.permutation(n) if rng is not None else np.arange(n)
+            for start in range(0, n, batch_size):
+                take = rows[start : start + batch_size]
+                yield {k: v[take] for k, v in shard.items()}
 
 
 def to_tensors(batch: dict[str, np.ndarray], device: torch.device) -> dict[str, torch.Tensor]:
@@ -216,7 +227,9 @@ def train(cfg: TrainConfig, config_dict: dict | None = None) -> dict:
     print(f"step 0 val {format_metrics(initial)}")
 
     step, start, last_ckpt = 0, time.time(), time.time()
-    running: dict[str, float] = {"loss": 0.0, "policy_loss": 0.0, "value_loss": 0.0, "n": 0}
+    # Running sums stay on the device: calling .item() every step would force a GPU sync.
+    running = torch.zeros(3, device=device)
+    running_n, seen = 0, 0
     model.train()
     done = False
     for epoch in range(cfg.epochs):
@@ -231,23 +244,29 @@ def train(cfg: TrainConfig, config_dict: dict | None = None) -> dict:
             scheduler.step()
             step += 1
 
-            running["loss"] += loss.item()
-            running["policy_loss"] += out["policy_loss"].item()
-            running["value_loss"] += out["value_loss"].item()
-            running["n"] += 1
+            running += torch.stack(
+                [loss.detach(), out["policy_loss"].detach(), out["value_loss"].detach()]
+            ).float()
+            running_n += 1
+            seen += batch["z"].shape[0]
 
             if step % cfg.eval_every == 0 or step == total_steps:
-                n = running.pop("n")
-                train_rec = {k: v / n for k, v in running.items()}
-                running = {"loss": 0.0, "policy_loss": 0.0, "value_loss": 0.0, "n": 0}
+                means = (running / running_n).tolist()
+                train_rec = dict(zip(("loss", "policy_loss", "value_loss"), means, strict=True))
+                running.zero_()
+                running_n = 0
                 val = evaluate(model, cfg.val_shards, device)
                 elapsed = time.time() - start
                 write({"step": step, "epoch": epoch, "split": "train", "seconds": elapsed,
                        "lr": scheduler.get_last_lr()[0], **train_rec})
                 write({"step": step, "epoch": epoch, "split": "val", "seconds": elapsed, **val})
+                rate = seen / max(elapsed, 1e-9)
+                eta = (total_steps - step) * cfg.batch_size / max(rate, 1e-9)
                 print(
-                    f"step {step} epoch {epoch} train_loss {train_rec['loss']:.3f} "
-                    f"val {format_metrics(val)} ({elapsed:.0f}s)"
+                    f"step {step}/{total_steps} epoch {epoch} train_loss {train_rec['loss']:.3f} "
+                    f"val {format_metrics(val)} ({elapsed:.0f}s, {rate:,.0f} pos/s, "
+                    f"eta {eta / 60:.0f} min)",
+                    flush=True,
                 )
             if time.time() - last_ckpt > cfg.checkpoint_minutes * 60:
                 checkpoint(step, "periodic")

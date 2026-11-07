@@ -1,6 +1,8 @@
-"""Supervised training on encoded Lichess shards (Phase 1 trial run).
+"""Supervised training on encoded Lichess shards.
 
     python -m scripts.train_supervised --month 2024-01 --run-name sl_trial
+    python -m scripts.train_supervised --months 2024-01,2024-02 --run-name sl_2m_6x64 \\
+        --batch-size 1024 --eval-every 1000 --device cuda
 
 Reads ``<paths.lichess_dir>/encoded/<month>/{train,val}-*.npz`` (from
 ``scripts/encode_lichess_dataset.py``), trains the policy-value net, and writes to
@@ -27,7 +29,11 @@ from alphachess.common.config import load_config, repo_path
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--month", default=None, help="YYYY-MM (default: lichess.month)")
-    parser.add_argument("--data-dir", default=None, help="folder of encoded .npz shards")
+    parser.add_argument("--months", default=None, help="several months, e.g. 2024-01,2024-02")
+    parser.add_argument(
+        "--data-dir", action="append", default=None,
+        help="folder of encoded .npz shards (repeat the flag for several folders)",
+    )
     parser.add_argument("--run-name", default="sl_trial")
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--max-steps", type=int, default=None)
@@ -48,21 +54,27 @@ def main() -> None:
     cfg = load_config()
     from alphachess.train.supervised import TrainConfig, train
 
-    month = args.month or cfg["lichess"]["month"]
-    data_dir = (
-        Path(args.data_dir)
-        if args.data_dir
-        else repo_path(cfg["paths"]["lichess_dir"]) / "encoded" / month
-    )
-    train_shards = sorted(str(p) for p in data_dir.glob("train-*.npz"))
-    val_shards = sorted(str(p) for p in data_dir.glob("val-*.npz"))
-    if not train_shards:
-        raise SystemExit(
-            f"no train-*.npz shards in {data_dir}; run scripts/build_lichess_dataset.py and "
-            "scripts/encode_lichess_dataset.py first"
-        )
+    if args.data_dir:
+        months = []
+        data_dirs = [Path(d) for d in args.data_dir]
+    else:
+        months = (args.months or args.month or cfg["lichess"]["month"]).split(",")
+        base = repo_path(cfg["paths"]["lichess_dir"]) / "encoded"
+        data_dirs = [base / m.strip() for m in months]
+    train_shards, val_shards = [], []
+    for data_dir in data_dirs:
+        found = sorted(str(p) for p in data_dir.glob("train-*.npz"))
+        if not found:
+            raise SystemExit(
+                f"no train-*.npz shards in {data_dir}; run scripts/build_lichess_dataset.py and "
+                "scripts/encode_lichess_dataset.py first"
+            )
+        train_shards += found
+        val_shards += sorted(str(p) for p in data_dir.glob("val-*.npz"))
+    print(f"{len(train_shards)} train / {len(val_shards)} val shards from "
+          f"{', '.join(str(d) for d in data_dirs)}")
     if not val_shards:
-        print(f"warning: no val-*.npz shards in {data_dir}; val metrics will be empty")
+        print("warning: no val-*.npz shards; val metrics will be empty")
 
     tcfg = TrainConfig(
         run_dir=str(repo_path(cfg["paths"]["runs_dir"]) / args.run_name),
@@ -81,7 +93,7 @@ def main() -> None:
         seed=args.seed,
         device=args.device,
         notes=args.notes,
-        extra={"month": month, "data_dir": str(data_dir)},
+        extra={"months": months, "data_dirs": [str(d) for d in data_dirs]},
     )
     summary = train(tcfg, config_dict={"model": cfg["model"], "lichess": cfg["lichess"]})
     print(json.dumps(summary, indent=2))
