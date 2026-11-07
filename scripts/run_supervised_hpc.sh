@@ -6,6 +6,8 @@
 #   bash scripts/run_supervised_hpc.sh encode    # Parquet -> .npz training shards, in parallel
 #   bash scripts/run_supervised_hpc.sh train     # train the ResNet on all months together
 #   bash scripts/run_supervised_hpc.sh all       # build, encode, train
+#   bash scripts/run_supervised_hpc.sh stop      # end the build early, keep what is done
+#                                                  (then encode and train continue)
 #
 # Run long steps inside tmux (or with nohup) so they survive a disconnect. Logs: runs/logs/.
 # Settings are environment variables, e.g.
@@ -118,8 +120,13 @@ train() {
     2>&1 | tee "$LOGS/train_$RUN.log"
 }
 
+stop() {
+  for m in $MONTHS; do touch "data/lichess/raw/$m/STOP" && echo "asked build $m to stop"; done
+}
+
 case "${1:-}" in
   check) check ;;
+  stop) stop ;;
   build) build ;;
   encode) encode ;;
   train) train ;;

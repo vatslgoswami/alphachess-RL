@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import multiprocessing as mp
+import random
 import shutil
 import time
 from dataclasses import asdict
@@ -56,17 +57,24 @@ def main() -> None:
     cache_dir = Path(args.cache_dir) if args.cache_dir else base / "hf_cache" / args.month
 
     files = list_month_files(args.month, args.insecure_download)
+    # Shuffled (fixed seed) so a run stopped early still covers the whole month, not its first days.
+    random.Random(0).shuffle(files)
     if args.max_files:
         files = files[: args.max_files]
     goal = f"target {target:,} positions" if target else "all eval games"
-    print(f"{args.month}: {len(files)} Parquet files, {args.workers} workers, {goal}", flush=True)
+    stop_file = out_dir / "STOP"
+    stop_file.unlink(missing_ok=True)
+    print(f"{args.month}: {len(files)} Parquet files, {args.workers} workers, {goal}\n"
+          f"to stop early and keep what is done: touch {stop_file}", flush=True)
 
     writer = ShardWriter(out_dir, lc["shard_size"])
     stats = BuildStats()
     started = time.perf_counter()
     jobs = [(f, str(cache_dir), asdict(sample_cfg), args.insecure_download) for f in files]
     done_files = 0
-    with mp.get_context("spawn").Pool(args.workers) as pool:
+    stopped = ""
+    pool = mp.get_context("spawn").Pool(args.workers)
+    try:
         for result in pool.imap_unordered(fetch_and_process, jobs):
             done_files += 1
             stats.games_seen += result["games_seen"]
@@ -83,12 +91,23 @@ def main() -> None:
                 if target and stats.positions >= target:
                     break
             elapsed = time.perf_counter() - started
+            eta = elapsed / done_files * (len(files) - done_files)
             print(f"[{done_files}/{len(files)} files] {stats.positions:,} positions from "
-                  f"{stats.games_used:,} games ({stats.games_seen:,} scanned) in {elapsed:.0f} s",
-                  flush=True)
+                  f"{stats.games_used:,} games ({stats.games_seen:,} scanned) in {elapsed:.0f} s"
+                  f", all files in ~{eta / 60:.0f} more min", flush=True)
             if target and stats.positions >= target:
-                pool.terminate()
+                stopped = "target reached"
                 break
+            if stop_file.exists():
+                stopped = "STOP file"
+                break
+    except KeyboardInterrupt:
+        stopped = "interrupted"
+    finally:
+        pool.terminate()
+        pool.join()
+    if stopped:
+        print(f"stopped early ({stopped}) after {done_files}/{len(files)} files", flush=True)
     writer.close()
     shutil.rmtree(cache_dir, ignore_errors=True)  # files left by workers stopped early
     stats.seconds = time.perf_counter() - started
@@ -96,6 +115,7 @@ def main() -> None:
     extra = {
         "source": f"huggingface:{args.month}",
         "files_processed": done_files,
+        "stopped_early": stopped or None,
         "files_total": len(files),
         "config": sample_cfg.__dict__,
         "target": target,
