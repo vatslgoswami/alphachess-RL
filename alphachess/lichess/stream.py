@@ -12,6 +12,8 @@ only games that pass the Elo and time-control filters pay for move parsing.
 from __future__ import annotations
 
 import io
+import ssl
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -27,14 +29,35 @@ def month_url(month: str) -> str:
     return DATABASE_URL.format(month=month)
 
 
+INSECURE_HOSTS = {"database.lichess.org"}
+
+
+def _urlopen(source: str, insecure: bool):
+    """Open a URL. ``insecure`` skips TLS certificate checks, for the public Lichess database only.
+
+    Needed behind campus firewalls that re-sign HTTPS (e.g. Fortinet deep inspection) without
+    providing their CA. The data is public, carries no credentials and is only parsed as PGN.
+    """
+    if not insecure:
+        return urllib.request.urlopen(source)
+    host = urllib.parse.urlparse(source).hostname
+    if host not in INSECURE_HOSTS:
+        raise ValueError(f"insecure download is only allowed for {sorted(INSECURE_HOSTS)}")
+    print(f"warning: TLS certificate verification disabled for {host}")
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    return urllib.request.urlopen(source, context=context)
+
+
 @contextmanager
-def open_pgn(source: str | Path):
+def open_pgn(source: str | Path, insecure: bool = False):
     """Yield a text stream of PGN from a URL, a ``.pgn.zst`` file or a ``.pgn`` file."""
     source = str(source)
     is_url = source.startswith(("http://", "https://"))
     if not source.endswith(".zst"):
         if is_url:
-            with urllib.request.urlopen(source) as response:
+            with _urlopen(source, insecure) as response:
                 yield io.TextIOWrapper(response, encoding="utf-8", errors="replace")
         else:
             with open(source, encoding="utf-8", errors="replace") as handle:
@@ -43,7 +66,7 @@ def open_pgn(source: str | Path):
 
     import zstandard
 
-    raw = urllib.request.urlopen(source) if is_url else open(source, "rb")  # noqa: SIM115
+    raw = _urlopen(source, insecure) if is_url else open(source, "rb")  # noqa: SIM115
     try:
         reader = zstandard.ZstdDecompressor().stream_reader(raw, read_size=1 << 20)
         yield io.TextIOWrapper(

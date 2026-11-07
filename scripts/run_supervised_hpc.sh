@@ -20,6 +20,8 @@ cd "$(dirname "$0")/.."
 
 MONTHS=${MONTHS:-"2024-01 2024-02"}
 TARGET=${TARGET:-4000000}            # positions per month (8 per game)
+INSECURE=${INSECURE:-0}              # 1 = skip TLS checks for database.lichess.org (firewalls)
+export INSECURE
 GPU=${GPU:-0}
 BLOCKS=${BLOCKS:-6}
 CHANNELS=${CHANNELS:-64}
@@ -54,9 +56,13 @@ EOF
   echo "== disk free here"; df -h . | tail -1
   echo "== network to Lichess (certificates: ${SSL_CERT_FILE:-system default})"
   python -c '
-import sys, urllib.request
+import os, ssl, sys, urllib.request
+ctx = ssl.create_default_context()
+if os.environ.get("INSECURE") == "1":
+    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+    print("(INSECURE=1: certificate check skipped)")
 req = urllib.request.Request(sys.argv[1], method="HEAD")
-with urllib.request.urlopen(req, timeout=20) as r:
+with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
     size = int(r.headers.get("Content-Length", 0)) / 1e9
     print(f"Python can reach Lichess: HTTP {r.status}, file {size:.1f} GB")
 ' "$LICHESS_URL" || echo "NO ACCESS to database.lichess.org from Python"
@@ -69,7 +75,9 @@ build() {
       echo "data/lichess/raw/$m already has shards; move them away first to rebuild"; exit 1
     fi
     echo "building $m -> $LOGS/build_$m.log"
-    python -m scripts.build_lichess_dataset --month "$m" --target "$TARGET" \
+    insecure_flag=""
+    [ "$INSECURE" = "1" ] && insecure_flag="--insecure-download"
+    python -m scripts.build_lichess_dataset --month "$m" --target "$TARGET" $insecure_flag \
       > "$LOGS/build_$m.log" 2>&1 &
   done
   wait
