@@ -43,10 +43,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--channels", type=int, default=None)
     parser.add_argument("--value-weight", type=float, default=1.0)
     parser.add_argument("--eval-every", type=int, default=50)
+    parser.add_argument(
+        "--val-periodic-positions", type=int, default=200_000,
+        help="validation positions used for the checks during training (0 = all); "
+        "the final check always uses every validation shard",
+    )
     parser.add_argument("--device", default="auto", help="auto | cpu | cuda | mps")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--notes", default="")
     return parser.parse_args()
+
+
+def pick_periodic_val(val_by_dir: list[list[str]], cap: int) -> list[str] | None:
+    """Fixed validation subset for checks during training: shards taken round-robin across
+    months until ``cap`` positions. None (use all) when ``cap`` is 0 or the total is small."""
+    if cap <= 0:
+        return None
+    import numpy as np
+
+    picked, total = [], 0
+    for i in range(max((len(v) for v in val_by_dir), default=0)):
+        for shards in val_by_dir:
+            if i < len(shards) and total < cap:
+                picked.append(shards[i])
+                with np.load(shards[i]) as data:
+                    total += len(data["z"])
+    if sum(len(v) for v in val_by_dir) == len(picked):
+        return None
+    print(f"periodic validation: {total:,} positions in {len(picked)} shards "
+          "(final check uses all validation shards)")
+    return picked
 
 
 def main() -> None:
@@ -61,7 +87,7 @@ def main() -> None:
         months = (args.months or args.month or cfg["lichess"]["month"]).split(",")
         base = repo_path(cfg["paths"]["lichess_dir"]) / "encoded"
         data_dirs = [base / m.strip() for m in months]
-    train_shards, val_shards = [], []
+    train_shards, val_shards, val_by_dir = [], [], []
     for data_dir in data_dirs:
         found = sorted(str(p) for p in data_dir.glob("train-*.npz"))
         if not found:
@@ -70,16 +96,20 @@ def main() -> None:
                 "scripts/encode_lichess_dataset.py first"
             )
         train_shards += found
-        val_shards += sorted(str(p) for p in data_dir.glob("val-*.npz"))
+        found_val = sorted(str(p) for p in data_dir.glob("val-*.npz"))
+        val_shards += found_val
+        val_by_dir.append(found_val)
     print(f"{len(train_shards)} train / {len(val_shards)} val shards from "
           f"{', '.join(str(d) for d in data_dirs)}")
     if not val_shards:
         print("warning: no val-*.npz shards; val metrics will be empty")
+    periodic = pick_periodic_val(val_by_dir, args.val_periodic_positions)
 
     tcfg = TrainConfig(
         run_dir=str(repo_path(cfg["paths"]["runs_dir"]) / args.run_name),
         train_shards=train_shards,
         val_shards=val_shards,
+        val_periodic_shards=periodic,
         blocks=args.blocks or cfg["model"]["blocks"],
         channels=args.channels or cfg["model"]["channels"],
         batch_size=args.batch_size or cfg["train"]["batch_size"],

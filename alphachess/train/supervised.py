@@ -40,6 +40,8 @@ class TrainConfig:
     run_dir: str
     train_shards: list[str]
     val_shards: list[str]
+    # Subset used for the periodic checks (fixed, so curves are comparable); None = all.
+    val_periodic_shards: list[str] | None = None
     blocks: int = 6
     channels: int = 64
     batch_size: int = 256
@@ -222,7 +224,8 @@ def train(cfg: TrainConfig, config_dict: dict | None = None) -> dict:
         f"device={device} params={count_parameters(model):,} train_positions={n_train:,} "
         f"steps={total_steps:,} ({steps_per_epoch:,}/epoch)"
     )
-    initial = evaluate(model, cfg.val_shards, device)
+    periodic_val = cfg.val_periodic_shards or cfg.val_shards
+    initial = evaluate(model, periodic_val, device)
     write({"step": 0, "split": "val", **initial})
     print(f"step 0 val {format_metrics(initial)}")
 
@@ -255,7 +258,7 @@ def train(cfg: TrainConfig, config_dict: dict | None = None) -> dict:
                 train_rec = dict(zip(("loss", "policy_loss", "value_loss"), means, strict=True))
                 running.zero_()
                 running_n = 0
-                val = evaluate(model, cfg.val_shards, device)
+                val = evaluate(model, periodic_val, device)
                 elapsed = time.time() - start
                 write({"step": step, "epoch": epoch, "split": "train", "seconds": elapsed,
                        "lr": scheduler.get_last_lr()[0], **train_rec})
