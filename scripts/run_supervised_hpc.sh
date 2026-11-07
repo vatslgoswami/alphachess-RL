@@ -30,6 +30,14 @@ EVAL_EVERY=${EVAL_EVERY:-1000}
 RUN=${RUN:-sl_$(echo "$MONTHS" | tr ' ' '_')_${BLOCKS}x${CHANNELS}}
 LOGS=runs/logs
 mkdir -p "$LOGS"
+LICHESS_URL="https://database.lichess.org/standard/lichess_db_standard_rated_2024-01.pgn.zst"
+
+# Old system certificate stores can't verify database.lichess.org; use certifi's up-to-date
+# bundle for Python's urllib, which the Lichess streamer uses.
+if [ -z "${SSL_CERT_FILE:-}" ] && python -c "import certifi" 2>/dev/null; then
+  SSL_CERT_FILE=$(python -m certifi)
+  export SSL_CERT_FILE
+fi
 
 check() {
   echo "== python";   python --version
@@ -44,9 +52,14 @@ EOF
   nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv || true
   echo "== CPU cores: $(nproc)"
   echo "== disk free here"; df -h . | tail -1
-  echo "== network to Lichess"
-  curl -sSI --max-time 20 "https://database.lichess.org/standard/lichess_db_standard_rated_2024-01.pgn.zst" \
-    | head -1 || echo "NO ACCESS to database.lichess.org from this machine"
+  echo "== network to Lichess (certificates: ${SSL_CERT_FILE:-system default})"
+  python -c '
+import sys, urllib.request
+req = urllib.request.Request(sys.argv[1], method="HEAD")
+with urllib.request.urlopen(req, timeout=20) as r:
+    size = int(r.headers.get("Content-Length", 0)) / 1e9
+    print(f"Python can reach Lichess: HTTP {r.status}, file {size:.1f} GB")
+' "$LICHESS_URL" || echo "NO ACCESS to database.lichess.org from Python"
   echo "== tests"; python -m pytest -q tests/test_encoding.py tests/test_model.py 2>&1 | tail -1
 }
 
