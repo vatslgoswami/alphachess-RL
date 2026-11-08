@@ -41,6 +41,12 @@ def parse_args() -> argparse.Namespace:
         help="also use games without [%%eval] (pair with --stockfish-fallback for value targets)",
     )
     parser.add_argument("--stockfish-fallback", action="store_true")
+    parser.add_argument(
+        "--insecure-download",
+        action="store_true",
+        help="skip TLS certificate checks for database.lichess.org (campus firewalls that "
+        "re-sign HTTPS); the data is public",
+    )
     return parser.parse_args()
 
 
@@ -68,7 +74,7 @@ def main() -> None:
     print(f"source: {source}\ntarget: {target:,} positions -> {out_dir}")
     stream_stats: dict = {}
     try:
-        with open_pgn(source) as stream:
+        with open_pgn(source, insecure=args.insecure_download) as stream:
             games = iter_games(stream, lambda h: keep_headers(h, sample_cfg), stream_stats)
             if args.max_games:
                 games = (g for i, g in enumerate(games) if i < args.max_games)

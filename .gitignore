@@ -44,3 +44,5 @@ runs/*
 .DS_Store
 .idea/
 .vscode/
+# Small released checkpoints (a few MB) are kept in models/
+!models/*.pt

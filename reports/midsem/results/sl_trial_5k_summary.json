@@ -1,0 +1,26 @@
+{
+  "steps": 180,
+  "seconds": 25.112258911132812,
+  "device": "mps",
+  "parameters": 505228,
+  "train_positions": 4456,
+  "val_initial": {
+    "positions": 248,
+    "policy_loss": 8.435062408447266,
+    "policy_top1": 0.0,
+    "policy_top5": 0.0,
+    "value_mse": 0.30602239793346775,
+    "value_mae": 0.4383124689902029,
+    "value_mse_baseline_zero": 0.3117311539188508
+  },
+  "val_final": {
+    "positions": 248,
+    "policy_loss": 4.9541401863098145,
+    "policy_top1": 0.11290322580645161,
+    "policy_top5": 0.3185483870967742,
+    "value_mse": 0.32992442961662044,
+    "value_mae": 0.43453927193918535,
+    "value_mse_baseline_zero": 0.3117311539188508
+  },
+  "checkpoint": "/Users/samyak/Documents/alpha-chess-rl/runs/sl_trial_5k/ckpt_00000180.pt"
+}

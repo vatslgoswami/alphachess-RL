@@ -1,0 +1,26 @@
+{
+  "steps": 278990,
+  "seconds": 2901.5277314186096,
+  "device": "cuda",
+  "parameters": 505228,
+  "train_positions": 28567802,
+  "val_initial": {
+    "positions": 200000,
+    "policy_loss": 8.427849052429199,
+    "policy_top1": 0.0,
+    "policy_top5": 0.0,
+    "value_mse": 0.2943953379821777,
+    "value_mae": 0.4198597506713867,
+    "value_mse_baseline_zero": 0.2952826274108887
+  },
+  "val_final": {
+    "positions": 1586377,
+    "policy_loss": 1.5152812971157177,
+    "policy_top1": 0.5114263507350396,
+    "policy_top5": 0.8887509085167019,
+    "value_mse": 0.06066144349479868,
+    "value_mae": 0.15897148376315448,
+    "value_mse_baseline_zero": 0.2942807418469478
+  },
+  "checkpoint": "/home/Samyak.baid_ug2024/alphachess-RL/runs/sl_2024-01_2024-02_6x64/ckpt_00278990.pt"
+}
