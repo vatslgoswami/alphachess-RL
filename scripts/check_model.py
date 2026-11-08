@@ -107,6 +107,7 @@ def main() -> None:
         print(f"\n== {args.split} split ({len(shards)} shards): {format_metrics(metrics)}")
         report[f"{args.split}_split"] = metrics
 
+    net.eval()  # BatchNorm must use its training statistics, not a 1-position batch
     check_positions(net, device)
     if args.games:
         report["games_vs_random"] = play_vs_random(net, device, args.games)

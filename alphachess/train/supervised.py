@@ -150,6 +150,7 @@ def compute_losses(
 @torch.no_grad()
 def evaluate(model: PolicyValueNet, paths: list[str], device: torch.device, batch_size: int = 1024):
     """Policy top-1/top-5 accuracy, policy CE, value MSE/MAE, and the predict-0 value baseline."""
+    was_training = model.training
     model.eval()
     n = 0
     sums = {"policy_loss": 0.0, "value_mse": 0.0, "value_mae": 0.0, "top1": 0.0, "top5": 0.0}
@@ -168,7 +169,7 @@ def evaluate(model: PolicyValueNet, paths: list[str], device: torch.device, batc
         sums["top5"] += (top5 == best[:, None]).any(dim=1).sum().item()
         z_sq += (batch["z"] ** 2).sum().item()
         n += b
-    model.train()
+    model.train(was_training)  # restore the caller's mode (eval stays eval)
     if n == 0:
         return {"positions": 0}
     metrics = {

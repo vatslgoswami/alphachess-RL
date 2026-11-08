@@ -108,3 +108,17 @@ def test_training_run_end_to_end(tmp_path):
     result = search(chess.Board(), evaluator, num_simulations=8)
     assert sum(result.visits.values()) == 8
     assert result.best_move in chess.Board().legal_moves
+
+
+def test_evaluate_keeps_eval_mode(tmp_path):
+    """evaluate() must not leave an eval-mode model in training mode (BatchNorm would then use
+    the statistics of whatever batch comes next, e.g. one position)."""
+    from alphachess.train.supervised import evaluate
+
+    write_shard(tmp_path / "val-00000.npz", make_rows(16, 3))
+    net = PolicyValueNet(blocks=1, channels=8).eval()
+    evaluate(net, [str(tmp_path / "val-00000.npz")], torch.device("cpu"))
+    assert not net.training
+    net.train()
+    evaluate(net, [str(tmp_path / "val-00000.npz")], torch.device("cpu"))
+    assert net.training
