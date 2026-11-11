@@ -1,6 +1,6 @@
 # AlphaChess
 
-How much does self-play reinforcement learning improve a chess agent that has already learned from human games? AlphaChess is a small-scale AlphaZero-style project built to investigate that question. It is an RL course project by Samyak, Vatsl and Agriya.
+How much does self-play reinforcement learning improve a chess agent that has already learned from human games? AlphaChess is a small-scale AlphaZero-style project built to investigate that question.
 
 ## The experiment
 
@@ -8,7 +8,7 @@ The starting point is a policy-value network trained on positions from Lichess g
 
 We plan to improve the supervised agent through self-play: search generates moves for games against itself, and the resulting positions and outcomes become training examples. We can then compare the supervised and self-play agents in matches and estimate the change in playing strength. Small endgames provide a separate setting for studying value functions and search against exact solutions.
 
-The project is in progress. The repository includes the Lichess data pipeline, supervised training, search and evaluation tools, and endgame solvers. The self-play and replay components are planned; the comparison and its results are not yet available.
+The project is in progress. The repository currently includes the Lichess data pipeline, supervised training runs, search and evaluation tools, and endgame solvers. The self-play and replay components are planned; the comparison and its results are not yet available.
 
 ## Setup
 
@@ -46,5 +46,3 @@ pytest
 - `alphachess/endgames/`: solve and investigate small endgames.
 - `scripts/`: entry points for data preparation, training and experiments.
 - `config.yaml`: shared experiment settings; datasets and run outputs live locally in `data/` and `runs/`.
-
-For more detail, see the explainers on [encoding and training](docs/Samyak_Encoding_Network_Training_Explainer.md), [search and evaluation](docs/Agriya_Phase1_Search_Eval_Explainer.md), and [endgame methods](docs/Vatsl_Endgame_DP_Primer.html).
