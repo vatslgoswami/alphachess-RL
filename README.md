@@ -1,71 +1,50 @@
-# alpha-chess-rl
+# AlphaChess
 
-A small-scale AlphaZero-style chess agent. We train a policy–value ResNet on human games from Lichess, then improve it with MCTS self-play RL, and measure how much Elo the RL adds.
+How much does self-play reinforcement learning improve a chess agent that has already learned from human games? AlphaChess is a small-scale AlphaZero-style project built to investigate that question. It is an RL course project by Samyak, Vatsl and Agriya.
 
-Team: **Samyak**, **Vatsl**, **Agriya**. RL course project, Monsoon 2026.
+## The experiment
 
-## Layout
+The starting point is a policy-value network trained on positions from Lichess games. Given a board, the network predicts both a move and the likely outcome. Monte Carlo tree search (MCTS) uses those predictions to explore possible continuations before choosing a move.
 
-All code is in one package, `alphachess/`. Each sub-package has one owner, but anyone can contribute.
+We plan to improve the supervised agent through self-play: search generates moves for games against itself, and the resulting positions and outcomes become training examples. We can then compare the supervised and self-play agents in matches and estimate the change in playing strength. Small endgames provide a separate setting for studying value functions and search against exact solutions.
 
-| Folder | What lives here | Owner |
-|---|---|---|
-| `alphachess/common/` | Config loading, checkpoint save/load, shared types | everyone |
-| `alphachess/encoding/` | Board → planes, move ↔ index (4672), legal-move mask | Samyak |
-| `alphachess/model/` | Policy–value ResNet | Samyak |
-| `alphachess/train/` | Supervised trainer (Phase 1), RL trainer (Phase 2) | Samyak |
-| `alphachess/endgames/` | Exact DP solver (KQK, KRK, KPK), approximation experiments, tablebase probing | Vatsl |
-| `alphachess/lichess/` | Lichess data pipeline: sample positions, attach move + Stockfish eval, write shards | Vatsl |
-| `alphachess/replay/` | Replay buffer of (s, π, z) (Phase 2) | Vatsl |
-| `alphachess/selfplay/` | Self-play workers, resignation, tablebase adjudication (Phase 2) | Vatsl |
-| `alphachess/mcts/` | PUCT / Gumbel MCTS with batched network calls | Agriya |
-| `alphachess/eval/` | UCI wrapper, match harness vs Stockfish, Elo with error bars | Agriya |
-| `scripts/` | Command-line entry points (`python -m scripts.<name>` or `python scripts/<name>.py`) | — |
-| `tests/` | `pytest` tests, one file per sub-package | — |
-| `notebooks/` | Exploration and plotting notebooks (strip outputs before committing) | — |
-| `reports/` | Midsem and end-term write-ups and figures | — |
-| `docs/` | Interfaces and contributing guide | — |
-| `data/`, `runs/` | Local datasets, tablebases, checkpoints, logs. **Git-ignored.** | — |
-
-The interfaces between components (encoding format, checkpoint format, replay record) are in [docs/INTERFACES.md](docs/INTERFACES.md). Code against those so all three of us can work in parallel.
-
-Agriya's Phase 1 search and evaluation implementation is documented in
-[`docs/SEARCH_EVAL.md`](docs/SEARCH_EVAL.md). It includes batched PUCT, the UCI wrapper, paired
-matches, Stockfish evaluation, Elo intervals, puzzle/position metrics, and the midsem plotting
-workflow. A conceptual walkthrough for teammates and teaching staff is in
-[`docs/Agriya_Phase1_Search_Eval_Explainer.md`](docs/Agriya_Phase1_Search_Eval_Explainer.md). The original
-implementation plan is in
-[`docs/AGRIYA_PHASE1_PLAN.md`](docs/AGRIYA_PHASE1_PLAN.md).
-
-Each of us writes an explainer for our own track, so the whole team knows the theory behind every part:
-
-- Agriya (search and evaluation): [`docs/Agriya_Phase1_Search_Eval_Explainer.md`](docs/Agriya_Phase1_Search_Eval_Explainer.md)
-- Vatsl (endgame DP, value iteration, RTDP): [`docs/Vatsl_Endgame_DP_Primer.html`](docs/Vatsl_Endgame_DP_Primer.html). Open it in a browser; the graphs are interactive. Live copy: https://claude.ai/artifact/1Mw6JMAVXHJE6n1EDXdvtP
-- Samyak (encoding, network, supervised and RL training): [`docs/Samyak_Encoding_Network_Training_Explainer.md`](docs/Samyak_Encoding_Network_Training_Explainer.md)
+The project is in progress. The repository includes the Lichess data pipeline, supervised training, search and evaluation tools, and endgame solvers. The self-play and replay components are planned; the comparison and its results are not yet available.
 
 ## Setup
+
+Python 3.10 or later is required. From the project root:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+```
+
+For the neural network and supervised trainer, install PyTorch with `pip install -e ".[dev,torch]"`. Stockfish is needed for evaluations against Stockfish; install it separately and make sure `stockfish` is on your PATH.
+
+## Try it
+
+Run a short match between MCTS and a random player:
+
+```bash
+python -m scripts.run_arena --evaluator uniform --simulations 16 \
+  --opponent random --max-plies 40 --run-dir runs/smoke-sim16
+```
+
+This uses a uniform evaluator, so it exercises search without a trained model. The games and summary are saved in `runs/smoke-sim16/`. For UCI usage, trained evaluators and Stockfish matches, see [search and evaluation](docs/SEARCH_EVAL.md).
+
+Run the fast tests with:
+
+```bash
 pytest
 ```
 
-PyTorch is an optional extra (`pip install -e ".[dev,torch]"`) because the endgame and data code doesn't need it.
+## Project files
 
-Stockfish is needed for the data pipeline and the evaluation harness: `brew install stockfish` (macOS) or `apt install stockfish` (Linux / Kaggle).
+- `alphachess/lichess/`, `encoding/`, `model/` and `train/`: prepare positions and train the policy-value network.
+- `alphachess/mcts/` and `eval/`: search, play matches and measure performance.
+- `alphachess/endgames/`: solve and investigate small endgames.
+- `scripts/`: entry points for data preparation, training and experiments.
+- `config.yaml`: shared experiment settings; datasets and run outputs live locally in `data/` and `runs/`.
 
-## Config
-
-Shared settings are in [`config.yaml`](config.yaml). Load them with:
-
-```python
-from alphachess.common.config import load_config
-cfg = load_config()            # config.yaml
-cfg = load_config("my.yaml")   # or override file
-```
-
-## Workflow
-
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md). In short: branch per feature, open a PR into `main`, and CI must pass.
+For more detail, see the explainers on [encoding and training](docs/Samyak_Encoding_Network_Training_Explainer.md), [search and evaluation](docs/Agriya_Phase1_Search_Eval_Explainer.md), and [endgame methods](docs/Vatsl_Endgame_DP_Primer.html).
